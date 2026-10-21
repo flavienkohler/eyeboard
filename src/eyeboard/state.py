@@ -15,6 +15,7 @@ from typing import Any, Generic, TypeVar, overload
 from eyeboard.dashboards.document import LoadResult
 from eyeboard.dashboards.model import Dashboard
 from eyeboard.services.dashboards import load_dashboards
+from eyeboard.services.legacy import LegacyImport, import_legacy_files
 
 RECENT_DASHBOARD_LIMIT = 8
 
@@ -53,6 +54,7 @@ class AppState:
     # Saved dashboards and what happened when they were loaded.
     dashboards = StateKey[list[Dashboard]](list)
     dashboards_loaded = StateKey[LoadResult](LoadResult)
+    legacy_import = StateKey[LegacyImport](LegacyImport)
     active_dashboard_id = StateKey[str | None](lambda: None)
     recent_dashboard_ids = StateKey[list[str]](list)
 
@@ -81,9 +83,10 @@ class AppState:
 
 
 def initialize_state(state: AppState) -> None:
-    """Load the saved dashboards once per session."""
+    """Import files of older versions and load the saved dashboards, once per session."""
     if "dashboards_loaded" in state.store:
         return
+    state.legacy_import = import_legacy_files()
     loaded = load_dashboards()
     state.dashboards_loaded = loaded
     state.dashboards = loaded.dashboards

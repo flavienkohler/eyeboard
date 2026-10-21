@@ -6,8 +6,10 @@ import streamlit as st
 from eyeboard.config import APP_LAYOUT, APP_PAGE_ICON, APP_PAGE_TITLE
 from eyeboard.dashboards.document import LoadResult
 from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
+from eyeboard.paths import data_dir
 from eyeboard.services.columns import guess_date_column
 from eyeboard.services.dataset import DataSource, source_from_path, source_from_upload
+from eyeboard.services.legacy import LegacyImport
 from eyeboard.services.recent_csvs import (
     get_recent_csv_cache_path,
     get_recent_csv_entry,
@@ -38,6 +40,7 @@ def main() -> None:
     initialize_state(state)
     render_header()
 
+    render_legacy_import_notice(state.legacy_import)
     render_dashboards_load_problems(state.dashboards_loaded)
 
     sidebar_selection = render_sidebar()
@@ -80,6 +83,24 @@ def main() -> None:
         render_compare_tab(dataset)
     with tabs[4]:
         render_dashboards_manager_tab(dataset)
+
+
+def render_legacy_import_notice(imported: LegacyImport) -> None:
+    """Say once that files of an older version were copied to the data folder."""
+    if not imported.happened:
+        return
+    copied = []
+    if imported.dashboards_from is not None:
+        copied.append(f"your dashboards (from `{imported.dashboards_from}`)")
+    if imported.recent_files:
+        copied.append(
+            f"{imported.recent_files} recent file(s) (from `{imported.recent_from}`)"
+        )
+    st.info(
+        f"EyeBoard now keeps its files in `{data_dir()}`. Copied: "
+        + " and ".join(copied)
+        + ". The old files are no longer used and can be deleted."
+    )
 
 
 def render_dashboards_load_problems(loaded: LoadResult) -> None:

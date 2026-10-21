@@ -4,8 +4,10 @@ import streamlit as st
 
 from eyeboard.config import DATE_PARSE_MODES, ENCODING_OPTIONS
 from eyeboard.models import DateSettings, ReadOptions
+from eyeboard.paths import recent_dir
 from eyeboard.services.columns import guess_date_column
 from eyeboard.services.recent_csvs import (
+    clear_recent_csvs,
     format_recent_csv_details,
     list_recent_csvs,
     touch_recent_csv,
@@ -107,6 +109,14 @@ def render_data_section():
                         state.active_recent_csv_id = selected_older_recent
                         state.active_csv_source = "recent"
                         st.rerun()
+
+        if recent_csvs:
+            st.caption(f"Recent files are kept in `{recent_dir()}`.")
+            if st.button("Clear recent files", key="clear_recent_csvs"):
+                clear_recent_csvs()
+                state.active_recent_csv_id = None
+                state.active_csv_source = "upload"
+                st.rerun()
 
         if selected_recent_csv_id is None and (
             state.active_csv_source == "recent"

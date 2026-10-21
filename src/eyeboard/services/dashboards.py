@@ -3,21 +3,21 @@
 import logging
 from pathlib import Path
 
-from eyeboard.config import DASHBOARDS_FILE
 from eyeboard.dashboards.document import (
     LoadResult,
     load_document_text,
     serialize_document,
 )
 from eyeboard.dashboards.model import Dashboard, PlotSpec
+from eyeboard.paths import dashboards_file
 from eyeboard.services.fileio import backup_file, write_text_atomic
 
 LOGGER = logging.getLogger(__name__)
 
 
-def load_dashboards(path: str | Path = DASHBOARDS_FILE) -> LoadResult:
+def load_dashboards(path: str | Path | None = None) -> LoadResult:
     """Read the saved dashboards; a missing file simply means there are none."""
-    file_path = Path(path)
+    file_path = Path(path) if path else dashboards_file()
     if not file_path.exists():
         return LoadResult()
 
@@ -39,7 +39,7 @@ def load_dashboards(path: str | Path = DASHBOARDS_FILE) -> LoadResult:
 
 def save_dashboards(
     dashboards: list[Dashboard],
-    path: str | Path = DASHBOARDS_FILE,
+    path: str | Path | None = None,
     *,
     loaded: LoadResult | None = None,
 ) -> str | None:
@@ -51,7 +51,7 @@ def save_dashboards(
     the new format, and entries that failed validation are copied to
     ``*.unreadable.bak`` before they disappear from the file.
     """
-    file_path = Path(path)
+    file_path = Path(path) if path else dashboards_file()
     if loaded is not None and loaded.blocked:
         return (
             f"`{file_path}` was not saved because the existing file could not be "

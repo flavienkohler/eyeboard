@@ -8,11 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from eyeboard.config import (
-    RECENT_CSV_CACHE_DIR,
-    RECENT_CSV_INDEX_FILE,
-    RECENT_CSV_LIMIT,
-)
+from eyeboard.config import RECENT_CSV_LIMIT
+from eyeboard.paths import recent_dir, recent_index_file
 from eyeboard.services.clock import utc_now_iso
 from eyeboard.services.fileio import write_text_atomic
 
@@ -20,9 +17,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 def load_recent_csv_index(
-    path: Path = RECENT_CSV_INDEX_FILE,
+    path: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Load recent CSV metadata from disk."""
+    path = path or recent_index_file()
     if not path.exists():
         return []
 
@@ -45,9 +43,10 @@ def load_recent_csv_index(
 
 def save_recent_csv_index(
     entries: list[dict[str, Any]],
-    path: Path = RECENT_CSV_INDEX_FILE,
+    path: Path | None = None,
 ) -> None:
     """Persist recent CSV metadata to disk."""
+    path = path or recent_index_file()
     write_text_atomic(path, json.dumps(entries, ensure_ascii=False, indent=2))
 
 
@@ -80,16 +79,18 @@ def format_recent_csv_details(entry: dict[str, Any]) -> str:
 def get_recent_csv_cache_path(
     entry_id: str,
     *,
-    cache_dir: Path = RECENT_CSV_CACHE_DIR,
-    index_path: Path = RECENT_CSV_INDEX_FILE,
+    cache_dir: Path | None = None,
+    index_path: Path | None = None,
 ) -> Path:
     """Return the cached file path for a recent CSV id."""
+    index_path = index_path or recent_index_file()
+    cache_dir = cache_dir or recent_dir()
     entries = load_recent_csv_index(index_path)
     for entry in entries:
         if entry.get("id") == entry_id:
             filename = entry.get("cache_filename")
             if filename:
-                return cache_dir / filename
+                return cache_dir / Path(filename).name
             break
     return cache_dir / entry_id
 
@@ -97,9 +98,10 @@ def get_recent_csv_cache_path(
 def get_recent_csv_entry(
     entry_id: str,
     *,
-    index_path: Path = RECENT_CSV_INDEX_FILE,
+    index_path: Path | None = None,
 ) -> dict[str, Any] | None:
     """Return the recent CSV metadata entry for a given id."""
+    index_path = index_path or recent_index_file()
     entries = load_recent_csv_index(index_path)
     return next((entry for entry in entries if entry.get("id") == entry_id), None)
 
@@ -107,10 +109,12 @@ def get_recent_csv_entry(
 def list_recent_csvs(
     limit: int = RECENT_CSV_LIMIT,
     *,
-    cache_dir: Path = RECENT_CSV_CACHE_DIR,
-    index_path: Path = RECENT_CSV_INDEX_FILE,
+    cache_dir: Path | None = None,
+    index_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Return recent CSV entries newest first, pruning missing files."""
+    index_path = index_path or recent_index_file()
+    cache_dir = cache_dir or recent_dir()
     entries = load_recent_csv_index(index_path)
     valid_entries: list[dict[str, Any]] = []
     changed = False
@@ -122,7 +126,7 @@ def list_recent_csvs(
         if not cache_filename:
             changed = True
             continue
-        cache_path = cache_dir / cache_filename
+        cache_path = cache_dir / Path(cache_filename).name
         if cache_path.exists():
             valid_entries.append(entry)
         else:
@@ -138,11 +142,13 @@ def remember_recent_csv(
     filename: str,
     raw_bytes: bytes,
     *,
-    cache_dir: Path = RECENT_CSV_CACHE_DIR,
-    index_path: Path = RECENT_CSV_INDEX_FILE,
+    cache_dir: Path | None = None,
+    index_path: Path | None = None,
     max_items: int = RECENT_CSV_LIMIT,
 ) -> dict[str, Any]:
     """Cache a CSV locally and move it to the top of the recent list."""
+    index_path = index_path or recent_index_file()
+    cache_dir = cache_dir or recent_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256(raw_bytes).hexdigest()[:16]
     safe_name = sanitize_filename(filename)
@@ -172,7 +178,7 @@ def remember_recent_csv(
         cache_filename = entry.get("cache_filename")
         if entry_id in kept_ids or not cache_filename:
             continue
-        stale_path = cache_dir / cache_filename
+        stale_path = cache_dir / Path(cache_filename).name
         if stale_path.exists():
             stale_path.unlink(missing_ok=True)
 
@@ -183,10 +189,11 @@ def remember_recent_csv(
 def touch_recent_csv(
     entry_id: str,
     *,
-    index_path: Path = RECENT_CSV_INDEX_FILE,
+    index_path: Path | None = None,
     max_items: int = RECENT_CSV_LIMIT,
 ) -> dict[str, Any] | None:
     """Move an existing recent CSV entry to the top after reopening it."""
+    index_path = index_path or recent_index_file()
     entries = load_recent_csv_index(index_path)
     matching_entry = next(
         (entry for entry in entries if entry.get("id") == entry_id), None
@@ -199,3 +206,24 @@ def touch_recent_csv(
     remaining_entries = [entry for entry in entries if entry.get("id") != entry_id]
     save_recent_csv_index([updated_entry, *remaining_entries][:max_items], index_path)
     return updated_entry
+
+
+def clear_recent_csvs(
+    *,
+    cache_dir: Path | None = None,
+    index_path: Path | None = None,
+) -> int:
+    """Delete every cached recent CSV and the index; return how many files went."""
+    cache_dir = cache_dir or recent_dir()
+    index_path = index_path or recent_index_file()
+    removed = 0
+    for entry in load_recent_csv_index(index_path):
+        cache_filename = entry.get("cache_filename")
+        if not cache_filename:
+            continue
+        cached = cache_dir / Path(cache_filename).name
+        if cached.exists():
+            cached.unlink()
+            removed += 1
+    index_path.unlink(missing_ok=True)
+    return removed

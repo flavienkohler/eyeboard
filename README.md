@@ -88,10 +88,16 @@ These settings affect:
 - Rename, delete, export/import dashboard JSON
 - Advanced JSON edit/validate/save
 
-## Saved dashboards
+## Where files are kept
 
-- Dashboards are stored in `saved_configs.json` locally.
-- `saved_configs.json` is ignored by git (not tracked).
+EyeBoard stores its files in one data folder, whatever the directory it is started from:
+
+- `dashboards.json`: your saved dashboards (a versioned format; older files are migrated automatically and a backup copy is kept).
+- `recent/`: copies of the CSV files you opened, for the "Recent CSVs" list. The sidebar shows the exact location and has a "Clear recent files" button.
+
+The folder is `%APPDATA%/eyeboard` on Windows (the standard per-user data folder on other systems). Set the `EYEBOARD_HOME` environment variable to use another folder.
+
+Files kept by earlier versions in the working directory (`saved_configs.json`, `data/.recent_csvs`) are copied to the data folder the first time the app starts; the originals are left in place.
 
 ## Development
 

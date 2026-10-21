@@ -21,6 +21,7 @@
 - The Dashboard and Compare tabs no longer have their own date column, order and format controls: they use the date settings of the sidebar, so every tab parses dates the same way (parsing is cached).
 - The application state is now typed (`AppState`): every key the app owns is declared once with its type and default, and a mistyped key is an error instead of a silent new entry.
 - EyeBoard is now an installable package with a command: `uv run eyeboard` (extra options go to Streamlit). The `app/` folder, the `sys.path` tricks and the PowerShell launcher are gone; `run_app.bat` is a short wrapper that checks for `uv`. Supported Python is 3.11 to 3.13, and the minimum versions of the dependencies (Streamlit 1.49, pandas 2.2.2, plotly 5.18, pydantic 2.7) are tested.
+- All files now live in one data folder (`%APPDATA%/eyeboard` on Windows, or `EYEBOARD_HOME`) instead of the working directory. Dashboards are saved as `dashboards.json`; files from earlier versions are copied there on first start (originals untouched). The sidebar shows where recent files are kept and can clear them. A recent-files index can no longer point outside its folder.
 
 ## 0.2.0 - 2026-07-01
 

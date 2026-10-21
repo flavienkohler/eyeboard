@@ -9,6 +9,7 @@ dependencies = [
   "pandas>=2.2.2",
   "plotly>=5.18",
   "pydantic>=2.7",
+  "platformdirs>=4",
 ]
 
 [project.scripts]

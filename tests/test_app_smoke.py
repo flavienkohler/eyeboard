@@ -14,9 +14,9 @@ CSV = "date;flow;temp\n" + "".join(
 
 
 @pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    """A scratch folder with one recent CSV, so the app has data to show."""
-    cache = tmp_path / "data" / ".recent_csvs"
+def workdir(eyeboard_home, tmp_path, monkeypatch):
+    """The data folder with one recent CSV, so the app has data to show."""
+    cache = eyeboard_home / "recent"
     cache.mkdir(parents=True)
     (cache / "abc_small.csv").write_text(CSV, encoding="utf-8")
     (cache / "index.json").write_text(
@@ -33,8 +33,8 @@ def workdir(tmp_path, monkeypatch):
         ),
         encoding="utf-8",
     )
-    monkeypatch.chdir(tmp_path)
-    return tmp_path
+    monkeypatch.chdir(tmp_path)  # unrelated to the data folder
+    return eyeboard_home
 
 
 def _run(select_recent: bool) -> AppTest:
@@ -74,7 +74,7 @@ def test_the_date_column_is_detected_from_the_loaded_file(workdir):
 
 
 def test_a_broken_file_is_reported_not_raised(workdir):
-    (workdir / "data" / ".recent_csvs" / "abc_small.csv").write_bytes(b"")
+    (workdir / "recent" / "abc_small.csv").write_bytes(b"")
 
     at = _run(select_recent=True)
 
@@ -106,10 +106,10 @@ def _add_dashboard_and_second_csv(workdir):
     dashboard = make_dashboard(
         "d1", "Flow board", plots=[make_plot(x_col="date", y_cols=["flow"])]
     )
-    (workdir / "saved_configs.json").write_text(
+    (workdir / "dashboards.json").write_text(
         serialize_document([dashboard]), encoding="utf-8"
     )
-    cache = workdir / "data" / ".recent_csvs"
+    cache = workdir / "recent"
     (cache / "def_other.csv").write_text(CSV.replace("1,0", "9,0"), encoding="utf-8")
     index_path = cache / "index.json"
     index = json.loads(index_path.read_text(encoding="utf-8"))
@@ -151,3 +151,37 @@ def test_the_compare_tab_draws_both_datasets_with_the_shared_dates(workdir):
     assert {"cmp_plot_a_d1", "cmp_plot_b_d1"} <= _chart_keys(at)
     labels = [w.label for w in at.selectbox]
     assert "Shared date/time column (optional)" not in labels
+
+
+def test_files_of_an_older_version_are_imported_and_announced(
+    eyeboard_home, tmp_path, monkeypatch
+):
+    from helpers import make_dashboard
+
+    from eyeboard.dashboards.document import serialize_document
+
+    old = tmp_path / "old_project"
+    (old / "data" / ".recent_csvs").mkdir(parents=True)
+    (old / "saved_configs.json").write_text(
+        serialize_document([make_dashboard("d1", "Old board")]), encoding="utf-8"
+    )
+    monkeypatch.chdir(old)
+
+    at = _run(select_recent=False)
+
+    assert not at.exception
+    assert [d.name for d in at.session_state["dashboards"]] == ["Old board"]
+    assert any("now keeps its files" in info.value for info in at.info)
+    assert (eyeboard_home / "dashboards.json").exists()
+
+
+def test_clearing_the_recent_files_empties_the_list(workdir):
+    at = _run(select_recent=True)
+    assert any(b.label == "small.csv" for b in at.sidebar.button)
+
+    next(b for b in at.sidebar.button if b.label == "Clear recent files").click()
+    at.run()
+
+    assert not at.exception
+    assert not any(b.label == "small.csv" for b in at.sidebar.button)
+    assert not (workdir / "recent" / "abc_small.csv").exists()

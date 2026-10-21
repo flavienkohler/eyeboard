@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.streamlit/secrets.toml
+saved_configs.json
+logs/
+docs/
+data/
+launcher_*.log
+run_app_*.log
+
+# Private working space and assistant instructions (never published)
+dev/
+CLAUDE.md
+.claude/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/

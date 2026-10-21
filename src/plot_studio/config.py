@@ -1,0 +1,33 @@
+"""Project-wide configuration constants."""
+
+from pathlib import Path
+
+import plotly.express as px
+
+APP_PAGE_TITLE = "EyeBoard"
+APP_PAGE_ICON = ":chart_with_upwards_trend:"
+APP_LAYOUT = "wide"
+APP_HEADER_TITLE = "EyeBoard"
+APP_HEADER_SUBTITLE = (
+    "Build reusable dashboards for CSV data without saving plot snapshots."
+)
+
+CANDIDATE_SEPARATORS = [",", ";", "\t", "|"]
+DATE_KEYWORDS = ("date", "time", "datum", "zeit", "datetime")
+DATE_PARSE_MODES = ["Auto-detect", "Day-first", "Month-first"]
+SAVED_CONFIGS_FILE = "saved_configs.json"
+RECENT_CSV_CACHE_DIR = Path("data/.recent_csvs")
+RECENT_CSV_INDEX_FILE = RECENT_CSV_CACHE_DIR / "index.json"
+RECENT_CSV_LIMIT = 10
+
+PLOT_TYPES = ["Line", "Scatter", "Bar", "Area"]
+TEMPLATES = [
+    "plotly",
+    "plotly_white",
+    "plotly_dark",
+    "ggplot2",
+    "seaborn",
+    "simple_white",
+    "none",
+]
+DEFAULT_SERIES_COLORS = px.colors.qualitative.Plotly

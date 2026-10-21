@@ -6,24 +6,12 @@ from typing import Any
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pandas.api.types import is_object_dtype
 
+from plot_studio.plotting.frame import prepare_plot_frame
 from plot_studio.services.columns import resolve_column
 
 LOGGER = logging.getLogger(__name__)
 COLUMN_PREVIEW_MAX_POINTS = 300
-
-
-def to_numeric_safe(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
-    """Convert object columns to numeric where possible without raising."""
-    numeric_df = df.copy()
-    for col in cols:
-        if col in numeric_df.columns and is_object_dtype(numeric_df[col]):
-            try:
-                numeric_df[col] = pd.to_numeric(numeric_df[col])
-            except (TypeError, ValueError):
-                continue
-    return numeric_df
 
 
 def apply_axis_titles(
@@ -97,28 +85,8 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
     template = spec.get("template", "plotly")
     title = spec.get("title") or None
     color_col = spec.get("color_col") or None
-    agg = spec.get("agg") or None
     series_style = spec.get("series_style") or {}
-
     plot_df = df
-    if agg and x_col and (y_cols or y2_cols):
-        agg_cols = list(dict.fromkeys(y_cols + y2_cols))
-        try:
-            grouped = plot_df.groupby(x_col, dropna=False)[agg_cols]
-            if agg == "mean":
-                plot_df = grouped.mean(numeric_only=True).reset_index()
-            elif agg == "sum":
-                plot_df = grouped.sum(numeric_only=True).reset_index()
-            elif agg == "min":
-                plot_df = grouped.min(numeric_only=True).reset_index()
-            elif agg == "max":
-                plot_df = grouped.max(numeric_only=True).reset_index()
-            elif agg == "median":
-                plot_df = grouped.median(numeric_only=True).reset_index()
-        except Exception:
-            plot_df = df
-
-    plot_df = to_numeric_safe(plot_df, list(dict.fromkeys(y_cols + y2_cols)))
 
     if not y2_cols:
         template_name = template if template != "none" else None
@@ -324,11 +292,24 @@ def render_plot_from_spec(
         resolution_warnings.append("No Y columns could be resolved.")
         return None, resolution_warnings
 
+    color_requested = spec.get("color_col")
+    color_col = (
+        resolve_column(color_requested, available_cols) if color_requested else None
+    )
+    if color_requested and not color_col:
+        resolution_warnings.append(f"Missing color column: '{color_requested}'")
+
     resolved_spec = dict(spec)
     resolved_spec["x_col"] = x_col
     resolved_spec["y_cols"] = y_cols
     resolved_spec["y2_cols"] = y2_cols
-    return make_figure(df, resolved_spec), resolution_warnings
+    resolved_spec["color_col"] = color_col
+
+    plot_df, resolved_spec, frame_warnings = prepare_plot_frame(df, resolved_spec)
+    resolution_warnings.extend(frame_warnings)
+    if not resolved_spec["y_cols"] and not resolved_spec["y2_cols"]:
+        return None, resolution_warnings
+    return make_figure(plot_df, resolved_spec), resolution_warnings
 
 
 def _sample_positions(length: int, max_points: int) -> list[int]:

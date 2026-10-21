@@ -3,7 +3,6 @@ import pandas as pd
 from plot_studio.plotting.figures import (
     make_column_preview_figure,
     render_plot_from_spec,
-    to_numeric_safe,
 )
 
 
@@ -41,20 +40,6 @@ def test_make_column_preview_figure_for_numeric_series_returns_figure():
     assert len(fig.data) == 1
 
 
-def test_to_numeric_safe_converts_numeric_strings_and_keeps_text():
-    df = pd.DataFrame(
-        {
-            "numbers": ["1", "2", "3"],
-            "labels": ["a", "b", "c"],
-        }
-    )
-
-    converted = to_numeric_safe(df, ["numbers", "labels"])
-
-    assert converted["numbers"].tolist() == [1, 2, 3]
-    assert converted["labels"].tolist() == ["a", "b", "c"]
-
-
 def test_make_column_preview_figure_downsamples_numeric_series():
     series = pd.Series(range(1_000))
 
@@ -90,3 +75,24 @@ def test_make_column_preview_figure_reuses_sorted_datetime_x_series():
         pd.Timestamp("2024-01-04"),
     ]
     assert list(fig.data[0].y) == [20, 30, 10]
+
+
+def test_render_plot_from_spec_reports_bad_numeric_cells_and_still_renders():
+    df = pd.DataFrame({"t": range(20), "v": ["1.5"] * 19 + ["--"]})
+    spec = {"x_col": "t", "y_cols": ["v"], "y2_cols": []}
+
+    fig, warnings = render_plot_from_spec(df, spec, list(df.columns))
+
+    assert fig is not None
+    assert pd.api.types.is_numeric_dtype(pd.Series(fig.data[0].y))
+    assert any("ignored" in warning for warning in warnings)
+
+
+def test_render_plot_from_spec_warns_about_a_missing_color_column():
+    df = pd.DataFrame({"t": [1, 2], "v": [1.0, 2.0]})
+    spec = {"x_col": "t", "y_cols": ["v"], "y2_cols": [], "color_col": "nope"}
+
+    fig, warnings = render_plot_from_spec(df, spec, list(df.columns))
+
+    assert fig is not None
+    assert "Missing color column: 'nope'" in warnings

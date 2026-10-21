@@ -112,3 +112,13 @@ uv run -- streamlit run app/app.py
 
 - Commit `uv.lock` for reproducible environments.
 - Streamlit app settings are in `.streamlit/config.toml`.
+
+## License
+
+EyeBoard is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You are free to use, study and modify it for any noncommercial purpose, provided the copyright notice and license terms stay with it. Commercial use requires the author's permission.
+
+If you use or present this work, please cite it (see [CITATION.cff](CITATION.cff); GitHub shows a "Cite this repository" button).
+
+## AI assistance
+
+Developed with the assistance of Claude (Anthropic) for code review and refactoring.

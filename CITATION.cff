@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use or present this software, please cite it as below."
+title: "EyeBoard"
+abstract: "Streamlit app to explore time-series CSV files, build reusable plot dashboards and compare datasets."
+type: software
+authors:
+  - family-names: "Kohler"
+    given-names: "Flavien"
+version: "0.2.0"
+date-released: "2026-10-21"
+license: PolyForm-Noncommercial-1.0.0

@@ -5,7 +5,7 @@ import pytest
 
 from eyeboard.services.clock import utc_now_iso
 from eyeboard.services.dashboards import save_dashboards
-from eyeboard.services.fileio import write_text_atomic
+from eyeboard.services.fileio import backup_file, write_text_atomic
 from eyeboard.services.recent_csvs import (
     format_recent_csv_details,
     load_recent_csv_index,
@@ -66,3 +66,21 @@ def test_recent_details_accept_old_and_new_timestamp_formats(opened_at):
     label = format_recent_csv_details({"file_size": 2048, "opened_at": opened_at})
 
     assert label.startswith("2 KB")
+
+
+def test_backup_file_copies_once_unless_overwrite_is_requested(tmp_path):
+    source = tmp_path / "saved.json"
+    source.write_text("v1", encoding="utf-8")
+
+    first = backup_file(source, "v1")
+    source.write_text("changed", encoding="utf-8")
+    second = backup_file(source, "v1")
+    third = backup_file(source, "v1", overwrite=True)
+
+    assert first == tmp_path / "saved.json.v1.bak" and second is None
+    assert third == first
+    assert first.read_text(encoding="utf-8") == "changed"
+
+
+def test_backup_file_ignores_a_missing_source(tmp_path):
+    assert backup_file(tmp_path / "missing.json", "v1") is None

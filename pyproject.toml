@@ -1,13 +1,14 @@
 [project]
 name = "eyeboard"
 version = "0.2.0"
-description = "EyeBoard Streamlit app with reusable dashboard templates (uv-managed)."
+description = "EyeBoard: explore time-series CSV files, build reusable plot dashboards and compare datasets."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
   "streamlit>=1.32",
   "pandas>=2.0",
   "plotly>=5.18",
+  "pydantic>=2.7",
 ]
 
 [dependency-groups]

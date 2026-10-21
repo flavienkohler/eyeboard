@@ -13,6 +13,7 @@
 - `saved_configs.json` and the recent-files index are written atomically, so a crash can no longer leave a half-written file.
 - Timestamps are stored in UTC (`...Z`) and shown in local time.
 - Unified the vocabulary: what used to be called template, config or saved config is now always a "dashboard", and the Plotly look is called a "theme" in the code.
+- Added typed dashboard models (pydantic) and a versioned file format with automatic migration from the original list format. Not yet used by the interface.
 
 ## 0.2.0 - 2026-07-01
 

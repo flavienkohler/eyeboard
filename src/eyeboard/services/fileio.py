@@ -1,6 +1,7 @@
 """Safe file writing helpers."""
 
 import os
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -24,3 +25,19 @@ def write_text_atomic(path: str | Path, text: str, encoding: str = "utf-8") -> N
     except BaseException:
         Path(tmp_name).unlink(missing_ok=True)
         raise
+
+
+def backup_file(path: str | Path, tag: str, *, overwrite: bool = False) -> Path | None:
+    """Copy a file next to itself as ``<name>.<tag>.bak``.
+
+    Returns the backup path, or ``None`` when there is nothing to back up or the
+    backup already exists and ``overwrite`` is false.
+    """
+    source = Path(path)
+    if not source.exists():
+        return None
+    backup = source.with_name(f"{source.name}.{tag}.bak")
+    if backup.exists() and not overwrite:
+        return None
+    shutil.copy2(source, backup)
+    return backup

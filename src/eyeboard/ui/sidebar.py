@@ -1,16 +1,16 @@
 """Sidebar rendering for data selection and reading options."""
 
-import pandas as pd
 import streamlit as st
 
 from eyeboard.config import DATE_PARSE_MODES, ENCODING_OPTIONS
+from eyeboard.models import DateSettings, ReadOptions
 from eyeboard.services.columns import guess_date_column
 from eyeboard.services.recent_csvs import (
     format_recent_csv_details,
     list_recent_csvs,
     touch_recent_csv,
 )
-from eyeboard.ui.context import ReadingOptions, SidebarSelection
+from eyeboard.ui.context import SidebarSelection
 
 
 def render_sidebar() -> SidebarSelection:
@@ -18,12 +18,12 @@ def render_sidebar() -> SidebarSelection:
     with st.sidebar:
         uploaded_file, recent_csv_id = render_data_section()
         st.divider()
-        reading_options = render_reading_options()
+        read_options = render_reading_options()
 
     return SidebarSelection(
         uploaded_file=uploaded_file,
         recent_csv_id=recent_csv_id,
-        reading_options=reading_options,
+        read_options=read_options,
     )
 
 
@@ -38,7 +38,7 @@ def render_data_section():
         selected_recent_csv_id = None
         uploaded_signature = None
         if uploaded_file is not None:
-            uploaded_signature = f"{uploaded_file.name}:{len(uploaded_file.getvalue())}"
+            uploaded_signature = upload_signature(uploaded_file)
 
         recent_csvs = list_recent_csvs()
         if recent_csvs:
@@ -157,8 +157,8 @@ def render_data_section():
     return uploaded_file, selected_recent_csv_id
 
 
-def render_reading_options() -> ReadingOptions:
-    """Render the shared CSV and date parsing options."""
+def render_reading_options() -> ReadOptions:
+    """Render the options that control how a CSV file is read."""
     with st.expander("Reading options", expanded=False):
         sep_label = st.selectbox(
             "Separator",
@@ -187,12 +187,12 @@ def render_reading_options() -> ReadingOptions:
             ],
             index=0,
         )
-        header: int | list[int] | None = 0
-        skiprows: list[int] | None = None
+        header: int | tuple[int, ...] | None = 0
+        skiprows: tuple[int, ...] | None = None
         if header_label == "Second row (skip first)":
-            header, skiprows = 0, [0]
+            header, skiprows = 0, (0,)
         elif header_label == "Two rows (multi header)":
-            header = [0, 1]
+            header = (0, 1)
         elif header_label == "No header":
             header = None
 
@@ -203,43 +203,51 @@ def render_reading_options() -> ReadingOptions:
             help="Auto-detect tries UTF-8, then Windows-1252. Change it if accents look wrong.",
         )
 
-        st.markdown("##### Date parsing")
-        sidebar_df = st.session_state.get("df")
-        sidebar_cols = (
-            list(sidebar_df.columns) if isinstance(sidebar_df, pd.DataFrame) else []
-        )
-        sidebar_date_guess = guess_date_column(sidebar_cols) if sidebar_cols else None
-        date_options = [None] + sidebar_cols if sidebar_cols else [None]
+    return ReadOptions(
+        sep=sep,
+        decimal=decimal,
+        header=header,
+        skiprows=skiprows,
+        encoding=ENCODING_OPTIONS[encoding_label],
+    )
 
-        current_sidebar_date_col = st.session_state.get("read_date_col")
-        if current_sidebar_date_col not in date_options:
-            current_sidebar_date_col = (
-                sidebar_date_guess if sidebar_date_guess in date_options else None
-            )
-            st.session_state["read_date_col"] = current_sidebar_date_col
 
+def upload_signature(uploaded_file) -> str:
+    """Identify an uploaded file by name and size (cheap, no content read)."""
+    return f"{uploaded_file.name}:{uploaded_file.size}"
+
+
+def render_date_options(columns: list[str], source_key: str) -> DateSettings:
+    """Render the date parsing options for the columns of the loaded file.
+
+    Called after the file is loaded, so the column choices always belong to the
+    current file. The detected date column is proposed once per loaded file;
+    after that the user's choice, including "(none)", is kept.
+    """
+    date_guess = guess_date_column(columns)
+    options = [None, *columns]
+
+    if (
+        st.session_state.get("date_settings_source") != source_key
+        or st.session_state.get("read_date_col") not in options
+    ):
+        st.session_state["read_date_col"] = date_guess
+        st.session_state["date_settings_source"] = source_key
+
+    if st.session_state.get("read_date_mode") not in DATE_PARSE_MODES:
+        st.session_state["read_date_mode"] = "Auto-detect"
+
+    with st.sidebar, st.expander("Date parsing", expanded=False):
         st.selectbox(
             "Date/time column (optional)",
-            options=date_options,
-            index=(
-                date_options.index(current_sidebar_date_col)
-                if current_sidebar_date_col in date_options
-                else 0
-            ),
+            options=options,
             key="read_date_col",
             format_func=lambda value: "(none)" if value is None else str(value),
-            disabled=(len(sidebar_cols) == 0),
-            help="Used for date parsing, mini-plots x-axis, and Plot Builder date filtering.",
+            help="Used for date parsing, the preview x-axis and date filtering.",
         )
-
-        current_date_mode = st.session_state.get("read_date_mode", "Auto-detect")
-        if current_date_mode not in DATE_PARSE_MODES:
-            current_date_mode = "Auto-detect"
-            st.session_state["read_date_mode"] = current_date_mode
         st.selectbox(
             "Date order",
             options=DATE_PARSE_MODES,
-            index=DATE_PARSE_MODES.index(current_date_mode),
             key="read_date_mode",
             help="Auto-detect infers day/month order from the selected column when possible.",
         )
@@ -249,13 +257,8 @@ def render_reading_options() -> ReadingOptions:
             help="Example: %d/%m/%Y or %m/%d/%Y. If filled, this overrides auto-detection.",
         )
 
-    date_format_input = (st.session_state.get("read_date_format", "") or "").strip()
-    return ReadingOptions(
-        sep=sep,
-        decimal=decimal,
-        header=header,
-        skiprows=skiprows,
-        date_mode=st.session_state.get("read_date_mode", "Auto-detect"),
-        date_format=date_format_input or None,
-        encoding=ENCODING_OPTIONS[encoding_label],
+    return DateSettings(
+        column=st.session_state["read_date_col"],
+        mode=st.session_state["read_date_mode"],
+        format=(st.session_state.get("read_date_format") or "").strip() or None,
     )

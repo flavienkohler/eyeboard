@@ -19,12 +19,6 @@ def initialize_session_state(session_state: MutableMapping[str, Any]) -> None:
     if "dashboards_loaded" not in session_state:
         session_state["dashboards_loaded"] = LoadResult()
 
-    if "df" not in session_state:
-        session_state["df"] = None
-
-    if "file_label" not in session_state:
-        session_state["file_label"] = ""
-
     if "active_csv_source" not in session_state:
         session_state["active_csv_source"] = "upload"
 
@@ -34,14 +28,17 @@ def initialize_session_state(session_state: MutableMapping[str, Any]) -> None:
     if "last_uploaded_csv_signature" not in session_state:
         session_state["last_uploaded_csv_signature"] = None
 
-    if "read_report" not in session_state:
-        session_state["read_report"] = None
+    if "remembered_upload_key" not in session_state:
+        session_state["remembered_upload_key"] = None
 
     if "active_dashboard_id" not in session_state:
         session_state["active_dashboard_id"] = None
 
     if "recent_dashboard_ids" not in session_state:
         session_state["recent_dashboard_ids"] = []
+
+    if "date_settings_source" not in session_state:
+        session_state["date_settings_source"] = None
 
     if "read_date_col" not in session_state:
         session_state["read_date_col"] = None

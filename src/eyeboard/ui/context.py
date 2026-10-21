@@ -5,20 +5,8 @@ from typing import Any
 
 import pandas as pd
 
-from eyeboard.models import CsvReadReport
-
-
-@dataclass(slots=True)
-class ReadingOptions:
-    """Parsed CSV and date-reading options from the sidebar."""
-
-    sep: str | None
-    decimal: str
-    header: int | list[int] | None
-    skiprows: list[int] | None
-    date_mode: str
-    date_format: str | None
-    encoding: str | None = None
+from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
+from eyeboard.services.dataset import DataSource
 
 
 @dataclass(slots=True)
@@ -27,7 +15,7 @@ class SidebarSelection:
 
     uploaded_file: Any
     recent_csv_id: str | None
-    reading_options: ReadingOptions
+    read_options: ReadOptions
 
 
 @dataclass(slots=True)
@@ -36,6 +24,9 @@ class MainDatasetContext:
 
     df: pd.DataFrame
     df_parsed: pd.DataFrame
+    source: DataSource
+    read_options: ReadOptions
+    date_settings: DateSettings
     cols: list[str]
     date_col: str | None
     date_guess: str | None

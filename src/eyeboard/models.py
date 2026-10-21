@@ -17,3 +17,23 @@ class CsvReadReport:
     header_label: str
     warnings: list[str] = field(default_factory=list)
     encoding_label: str = "UTF-8"
+
+
+@dataclass(frozen=True, slots=True)
+class ReadOptions:
+    """How to turn the bytes of a CSV file into a table (hashable: used as a cache key)."""
+
+    sep: str | None = None
+    decimal: str = "."
+    header: int | tuple[int, ...] | None = 0
+    skiprows: tuple[int, ...] | None = None
+    encoding: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DateSettings:
+    """How to read the date column of a table (hashable: used as a cache key)."""
+
+    column: str | None = None
+    mode: str = "Auto-detect"
+    format: str | None = None

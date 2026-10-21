@@ -5,19 +5,19 @@ import streamlit as st
 
 from eyeboard.config import APP_LAYOUT, APP_PAGE_ICON, APP_PAGE_TITLE
 from eyeboard.dashboards.document import LoadResult
+from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
 from eyeboard.services.columns import guess_date_column
-from eyeboard.services.csv_reading import read_csv_input
-from eyeboard.services.date_parsing import parse_dates_flexible
+from eyeboard.services.dataset import DataSource, source_from_path, source_from_upload
 from eyeboard.services.recent_csvs import (
     get_recent_csv_cache_path,
     get_recent_csv_entry,
     remember_recent_csv,
-    touch_recent_csv,
 )
 from eyeboard.state import initialize_session_state
-from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.cache import load_table_cached, parse_table_cached
+from eyeboard.ui.context import MainDatasetContext, SidebarSelection
 from eyeboard.ui.header import render_dataset_summary, render_header
-from eyeboard.ui.sidebar import render_sidebar
+from eyeboard.ui.sidebar import render_date_options, render_sidebar, upload_signature
 from eyeboard.ui.tabs.compare import render_compare_tab
 from eyeboard.ui.tabs.dashboard import render_dashboard_tab
 from eyeboard.ui.tabs.dashboards_manager import render_dashboards_manager_tab
@@ -40,62 +40,23 @@ def main() -> None:
     render_dashboards_load_problems(st.session_state["dashboards_loaded"])
 
     sidebar_selection = render_sidebar()
-    csv_path = ""
-    uploaded_file = sidebar_selection.uploaded_file
-    path_source_kind = "Server path"
-    recent_csv_entry = None
-    if sidebar_selection.recent_csv_id is not None:
-        csv_path = str(get_recent_csv_cache_path(sidebar_selection.recent_csv_id))
-        recent_csv_entry = get_recent_csv_entry(sidebar_selection.recent_csv_id)
-        uploaded_file = None
-        path_source_kind = "Recent cache"
+    read_options = sidebar_selection.read_options
 
-    df, label, err, read_report = read_csv_input(
-        uploaded_file,
-        csv_path,
-        decimal=sidebar_selection.reading_options.decimal,
-        sep=sidebar_selection.reading_options.sep,
-        header=sidebar_selection.reading_options.header,
-        skiprows=sidebar_selection.reading_options.skiprows,
-        encoding=sidebar_selection.reading_options.encoding,
-        path_source_kind=path_source_kind,
-    )
-
-    if err:
-        st.session_state["df"] = None
-        st.session_state["file_label"] = ""
-        st.session_state["read_report"] = None
-        st.error(f"Could not read CSV: {err}")
-    elif df is not None:
-        if recent_csv_entry is not None:
-            label = recent_csv_entry.get("filename", label)
-            if read_report is not None:
-                read_report.source_label = label
-        st.session_state["df"] = df
-        st.session_state["file_label"] = label
-        st.session_state["read_report"] = read_report
-        if sidebar_selection.recent_csv_id is not None:
-            touch_recent_csv(sidebar_selection.recent_csv_id)
-            st.session_state["active_recent_csv_id"] = sidebar_selection.recent_csv_id
-            st.session_state["active_csv_source"] = "recent"
-        elif sidebar_selection.uploaded_file is not None:
-            recent_entry = remember_recent_csv(
-                sidebar_selection.uploaded_file.name,
-                sidebar_selection.uploaded_file.getvalue(),
-            )
-            st.session_state["active_recent_csv_id"] = recent_entry.get("id")
-            st.session_state["active_csv_source"] = "upload"
-            st.session_state["last_uploaded_csv_signature"] = (
-                f"{sidebar_selection.uploaded_file.name}:"
-                f"{len(sidebar_selection.uploaded_file.getvalue())}"
-            )
-
-    current_df = st.session_state["df"]
-    if current_df is None:
+    source = resolve_source(sidebar_selection)
+    if source is None:
         st.info("Upload a CSV to start.")
         st.stop()
 
-    dataset = build_main_dataset_context(current_df)
+    df, read_report, error = load_table_cached(source, read_options)
+    if error:
+        st.error(f"Could not read CSV: {error}")
+        st.stop()
+    remember_source(sidebar_selection, source)
+
+    date_settings = render_date_options(list(df.columns), source.key)
+    dataset = build_main_dataset_context(
+        df, read_report, source, read_options, date_settings
+    )
     render_dataset_summary(dataset)
 
     tabs = st.tabs(
@@ -115,7 +76,7 @@ def main() -> None:
     with tabs[2]:
         render_dashboard_tab(dataset)
     with tabs[3]:
-        render_compare_tab(dataset, sidebar_selection.reading_options)
+        render_compare_tab(dataset)
     with tabs[4]:
         render_dashboards_manager_tab(dataset)
 
@@ -131,76 +92,64 @@ def render_dashboards_load_problems(loaded: LoadResult) -> None:
             st.caption(escape_markdown(problem))
 
 
-def build_main_dataset_context(df) -> MainDatasetContext:
+def resolve_source(selection: SidebarSelection) -> DataSource | None:
+    """Turn the sidebar choice (recent file or upload) into a data source."""
+    if selection.recent_csv_id is not None:
+        entry = get_recent_csv_entry(selection.recent_csv_id)
+        cache_path = get_recent_csv_cache_path(selection.recent_csv_id)
+        if entry is not None and cache_path.exists():
+            return source_from_path(
+                cache_path,
+                kind="Recent cache",
+                label=entry.get("filename") or cache_path.name,
+            )
+        st.warning("The selected recent file is no longer available.")
+    if selection.uploaded_file is not None:
+        return source_from_upload(selection.uploaded_file)
+    return None
+
+
+def remember_source(selection: SidebarSelection, source: DataSource) -> None:
+    """Record the loaded file in the recent list, once per new upload."""
+    if selection.recent_csv_id is not None:
+        st.session_state["active_recent_csv_id"] = selection.recent_csv_id
+        st.session_state["active_csv_source"] = "recent"
+        return
+
+    uploaded = selection.uploaded_file
+    if uploaded is None or st.session_state.get("remembered_upload_key") == source.key:
+        return
+    entry = remember_recent_csv(uploaded.name, uploaded.getvalue())
+    st.session_state["remembered_upload_key"] = source.key
+    st.session_state["active_recent_csv_id"] = entry.get("id")
+    st.session_state["active_csv_source"] = "upload"
+    st.session_state["last_uploaded_csv_signature"] = upload_signature(uploaded)
+
+
+def build_main_dataset_context(
+    df: pd.DataFrame,
+    read_report: CsvReadReport,
+    source: DataSource,
+    read_options: ReadOptions,
+    date_settings: DateSettings,
+) -> MainDatasetContext:
     """Build the derived dataset context shared across tabs."""
+    parsed = parse_table_cached(source, read_options, date_settings, df)
     cols = list(df.columns)
-    date_guess = guess_date_column(cols)
-    date_mode = st.session_state.get("read_date_mode", "Auto-detect")
-    date_format = (st.session_state.get("read_date_format", "") or "").strip() or None
-    date_col_state = st.session_state.get("read_date_col")
-    date_col = (
-        date_col_state
-        if date_col_state in cols
-        else (date_guess if date_guess in cols else None)
-    )
-    df_parsed = parse_dates_flexible(
-        df,
-        date_col,
-        date_mode=date_mode,
-        date_format=date_format,
-    )
-    date_parse_success_count, date_parse_candidate_count, date_parse_warning = (
-        build_date_parse_summary(df, df_parsed, date_col)
-    )
     return MainDatasetContext(
         df=df,
-        df_parsed=df_parsed,
+        df_parsed=parsed.df,
+        source=source,
+        read_options=read_options,
+        date_settings=date_settings,
         cols=cols,
-        date_col=date_col,
-        date_guess=date_guess,
-        label=st.session_state["file_label"] or "CSV",
-        read_report=st.session_state.get("read_report"),
-        date_parse_success_count=date_parse_success_count,
-        date_parse_candidate_count=date_parse_candidate_count,
-        date_parse_mode=date_mode,
-        date_format=date_format,
-        date_parse_warning=date_parse_warning,
+        date_col=date_settings.column,
+        date_guess=guess_date_column(cols),
+        label=source.label,
+        read_report=read_report,
+        date_parse_success_count=parsed.date_parse_success_count,
+        date_parse_candidate_count=parsed.date_parse_candidate_count,
+        date_parse_mode=date_settings.mode,
+        date_format=date_settings.format,
+        date_parse_warning=parsed.date_parse_warning,
     )
-
-
-def build_date_parse_summary(
-    df: pd.DataFrame,
-    df_parsed: pd.DataFrame,
-    date_col: str | None,
-) -> tuple[int, int, str | None]:
-    """Summarize how successfully the selected date column parsed."""
-    if (
-        date_col is None
-        or date_col not in df.columns
-        or date_col not in df_parsed.columns
-    ):
-        return 0, 0, None
-
-    source_series = df[date_col]
-    parsed_series = df_parsed[date_col]
-    candidate_mask = source_series.notna()
-
-    if pd.api.types.is_object_dtype(source_series) or pd.api.types.is_string_dtype(
-        source_series
-    ):
-        stripped = source_series.astype("string").str.strip()
-        candidate_mask = candidate_mask & stripped.ne("")
-
-    candidate_count = int(candidate_mask.sum())
-    success_count = int(parsed_series[candidate_mask].notna().sum())
-    if candidate_count == 0:
-        return success_count, candidate_count, None
-
-    success_rate = success_count / candidate_count
-    warning = None
-    if success_rate < 0.8:
-        warning = (
-            f"Only {success_count:,} of {candidate_count:,} non-empty date values "
-            "parsed successfully."
-        )
-    return success_count, candidate_count, warning

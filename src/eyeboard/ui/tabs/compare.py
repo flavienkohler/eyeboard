@@ -4,9 +4,10 @@ import pandas as pd
 import streamlit as st
 
 from eyeboard.config import DATE_PARSE_MODES
+from eyeboard.models import ReadOptions
 from eyeboard.plotting.figures import render_plot_from_spec
 from eyeboard.services.columns import guess_date_column, resolve_column
-from eyeboard.services.csv_reading import read_csv_input
+from eyeboard.services.dataset import DataSource, source_from_path, source_from_upload
 from eyeboard.services.date_parsing import parse_dates_flexible
 from eyeboard.services.recent_csvs import (
     format_recent_csv_details,
@@ -14,14 +15,45 @@ from eyeboard.services.recent_csvs import (
     list_recent_csvs,
 )
 from eyeboard.state import remember_recent_dashboard
-from eyeboard.ui.context import MainDatasetContext, ReadingOptions
+from eyeboard.ui.cache import load_table_cached
+from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.text import escape_markdown
 
 
-def render_compare_tab(
-    dataset: MainDatasetContext,
-    reading_options: ReadingOptions,
-) -> None:
+def _compare_source(
+    uploaded_file: object,
+    recent_id: str | None,
+    recent_by_id: dict[str, dict],
+) -> DataSource | None:
+    """Pick the data source of one compared dataset (a recent file wins)."""
+    if recent_id is not None and recent_id in recent_by_id:
+        path = get_recent_csv_cache_path(recent_id)
+        if path.exists():
+            return source_from_path(
+                path,
+                kind="Recent cache",
+                label=recent_by_id[recent_id].get("filename") or path.name,
+            )
+    if uploaded_file is not None:
+        return source_from_upload(uploaded_file)
+    return None
+
+
+def _load_compare_dataset(
+    name: str,
+    source: DataSource | None,
+    options: ReadOptions,
+) -> tuple[pd.DataFrame | None, str]:
+    """Load one compared dataset through the cache, reporting read errors."""
+    if source is None:
+        return None, ""
+    df, _, error = load_table_cached(source, options)
+    if error:
+        st.error(f"Could not read CSV {name}: {error}")
+    return df, source.label
+
+
+def render_compare_tab(dataset: MainDatasetContext) -> None:
     """Render the compare-two-datasets tab."""
     st.markdown("#### Compare (2 CSVs)")
     st.caption("Load two CSVs and compare selected saved plot dashboards side by side.")
@@ -67,49 +99,12 @@ def render_compare_tab(
         if cmp_recent_b is not None and cmp_recent_b in recent_by_id:
             st.caption(format_recent_csv_details(recent_by_id[cmp_recent_b]))
 
-    cmp_path_a = (
-        str(get_recent_csv_cache_path(cmp_recent_a))
-        if cmp_recent_a is not None and cmp_recent_a in recent_by_id
-        else ""
+    cmp_df_a, cmp_label_a = _load_compare_dataset(
+        "A", _compare_source(cmp_up_a, cmp_recent_a, recent_by_id), dataset.read_options
     )
-    cmp_path_b = (
-        str(get_recent_csv_cache_path(cmp_recent_b))
-        if cmp_recent_b is not None and cmp_recent_b in recent_by_id
-        else ""
+    cmp_df_b, cmp_label_b = _load_compare_dataset(
+        "B", _compare_source(cmp_up_b, cmp_recent_b, recent_by_id), dataset.read_options
     )
-    cmp_source_kind_a = "Recent cache" if cmp_path_a else "Upload"
-    cmp_source_kind_b = "Recent cache" if cmp_path_b else "Upload"
-
-    cmp_df_a, cmp_label_a, cmp_err_a, _ = read_csv_input(
-        None if cmp_path_a else cmp_up_a,
-        cmp_path_a,
-        decimal=reading_options.decimal,
-        sep=reading_options.sep,
-        header=reading_options.header,
-        skiprows=reading_options.skiprows,
-        encoding=reading_options.encoding,
-        path_source_kind=cmp_source_kind_a,
-    )
-    cmp_df_b, cmp_label_b, cmp_err_b, _ = read_csv_input(
-        None if cmp_path_b else cmp_up_b,
-        cmp_path_b,
-        decimal=reading_options.decimal,
-        sep=reading_options.sep,
-        header=reading_options.header,
-        skiprows=reading_options.skiprows,
-        encoding=reading_options.encoding,
-        path_source_kind=cmp_source_kind_b,
-    )
-
-    if cmp_recent_a is not None and cmp_recent_a in recent_by_id:
-        cmp_label_a = recent_by_id[cmp_recent_a].get("filename", cmp_label_a)
-    if cmp_recent_b is not None and cmp_recent_b in recent_by_id:
-        cmp_label_b = recent_by_id[cmp_recent_b].get("filename", cmp_label_b)
-
-    if cmp_err_a:
-        st.error(f"Could not read CSV A: {cmp_err_a}")
-    if cmp_err_b:
-        st.error(f"Could not read CSV B: {cmp_err_b}")
 
     if cmp_df_a is None or cmp_df_b is None:
         st.info("Provide both Dataset A and Dataset B to compare dashboards.")

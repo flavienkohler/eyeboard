@@ -16,6 +16,8 @@
 - Added typed dashboard models (pydantic) and a versioned file format with automatic migration from the original list format. Not yet used by the interface.
 - Dashboards, plots and series styles are now typed and validated everywhere (Plot Builder, Dashboards Manager, JSON editor, import, plotting). The saved file uses a versioned format; the original list format is migrated automatically and copied once to `saved_configs.json.v1.bak`. Dashboards that fail validation are reported with the exact problem and backed up instead of being silently dropped.
 - Importing a dashboard that already exists (for example your own export) now creates a copy with a new id.
+- Loading and date parsing are now pure functions (`services/dataset.py`) cached by Streamlit on a cheap source key and the reading options, so a rerun no longer re-reads or re-parses the file. The sidebar builds the date options after the file is loaded (no more stale column list), a recent file is touched and an upload remembered once instead of on every rerun, and the dataframe is no longer kept in session state.
+- Choosing "(none)" as the date column now works; the detected date column is proposed once per loaded file.
 
 ## 0.2.0 - 2026-07-01
 

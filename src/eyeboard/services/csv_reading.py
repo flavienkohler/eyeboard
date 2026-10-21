@@ -4,8 +4,6 @@ import io
 import logging
 import re
 from collections.abc import Sequence
-from pathlib import Path
-from typing import Any
 
 import pandas as pd
 from pandas.api.types import is_object_dtype
@@ -296,54 +294,3 @@ def read_csv_bytes(
         warnings=warnings,
     )
     return cleaned, report
-
-
-def read_csv_input(
-    uploaded_file: Any,
-    csv_path: str,
-    *,
-    decimal: str,
-    sep: str | None,
-    header: int | Sequence[int] | None,
-    skiprows: Sequence[int] | None,
-    path_source_kind: str = "Server path",
-    encoding: str | None = None,
-) -> tuple[pd.DataFrame | None, str, str | None, CsvReadReport | None]:
-    """Read CSV content from an uploaded file or a filesystem path.
-
-    Returns ``(dataframe, label, error_message, report)``; on failure the
-    dataframe is ``None`` and the error message is meant for the user.
-    """
-    if uploaded_file is None and not (csv_path or "").strip():
-        return None, "", None, None
-
-    try:
-        if uploaded_file is not None:
-            raw = uploaded_file.getvalue()
-            label = uploaded_file.name
-            source_kind = "Upload"
-        else:
-            path = Path(csv_path.strip())
-            raw = path.read_bytes()
-            label = path.name
-            source_kind = path_source_kind
-
-        df, report = read_csv_bytes(
-            raw,
-            decimal=decimal,
-            sep=sep,
-            header=header,
-            skiprows=skiprows,
-            encoding=encoding,
-            source_kind=source_kind,
-            source_label=label,
-        )
-    except CsvReadError as exc:
-        return None, "", str(exc), None
-    except OSError as exc:
-        return None, "", f"The file could not be opened: {exc}", None
-    except Exception:
-        LOGGER.exception("Unexpected error while reading a CSV.")
-        raise
-
-    return df, label, None, report

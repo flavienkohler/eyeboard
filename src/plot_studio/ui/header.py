@@ -4,6 +4,7 @@ import streamlit as st
 
 from plot_studio.config import APP_HEADER_SUBTITLE, APP_HEADER_TITLE
 from plot_studio.ui.context import MainDatasetContext
+from plot_studio.ui.text import escape_markdown
 
 
 def render_header() -> None:
@@ -27,7 +28,7 @@ def render_dataset_summary(dataset: MainDatasetContext) -> None:
     """Render top-of-page dataset summary metrics."""
     left, right = st.columns([2, 1], vertical_alignment="top")
     with left:
-        st.markdown(f"#### Data: `{dataset.label or 'CSV'}`")
+        st.markdown(f"#### Data: {escape_markdown(dataset.label or 'CSV')}")
     with right:
         st.markdown("")
         action_col, tip_col = st.columns([0.7, 1.3], vertical_alignment="center")

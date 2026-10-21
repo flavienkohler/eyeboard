@@ -17,6 +17,7 @@ from plot_studio.services.templates import (
 )
 from plot_studio.state import remember_recent_config
 from plot_studio.ui.context import MainDatasetContext
+from plot_studio.ui.text import escape_markdown
 
 
 def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
@@ -295,7 +296,7 @@ def render_series_styling(
                 color_key = f"sty_{safe}_color"
                 if color_key not in st.session_state:
                     st.session_state[color_key] = default_color
-                st.markdown(f"**{series_name}**")
+                st.markdown(f"**{escape_markdown(series_name)}**")
                 c1, c2, c3 = st.columns([1.2, 1, 1])
                 with c1:
                     color = st.color_picker(

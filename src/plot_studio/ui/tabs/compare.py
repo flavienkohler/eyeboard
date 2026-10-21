@@ -15,6 +15,7 @@ from plot_studio.services.recent_csvs import (
 )
 from plot_studio.state import remember_recent_config
 from plot_studio.ui.context import MainDatasetContext, ReadingOptions
+from plot_studio.ui.text import escape_markdown
 
 
 def render_compare_tab(
@@ -290,18 +291,18 @@ def render_compare_results(
         cmp_plots = cmp_cfg.get("plots") or []
         if not cmp_plots:
             with st.container(border=True):
-                st.markdown(f"**{cmp_cfg.get('name', 'Unnamed')}**")
+                st.markdown(f"**{escape_markdown(cmp_cfg.get('name', 'Unnamed'))}**")
                 st.warning("This config contains no plots.")
             continue
 
         cmp_spec = cmp_plots[0]
 
         with st.container(border=True):
-            st.markdown(f"**{cmp_cfg.get('name', 'Unnamed')}**")
+            st.markdown(f"**{escape_markdown(cmp_cfg.get('name', 'Unnamed'))}**")
             c_a, c_b = st.columns(2, vertical_alignment="top")
 
             with c_a:
-                st.caption(f"A - {cmp_label_a or 'CSV A'}")
+                st.caption(f"A - {escape_markdown(cmp_label_a or 'CSV A')}")
                 fig_a, warns_a = render_plot_from_spec(
                     compare_state["cmp_filtered_a"],
                     cmp_spec,
@@ -327,7 +328,7 @@ def render_compare_results(
                     st.error("Could not render this config for Dataset A.")
 
             with c_b:
-                st.caption(f"B - {cmp_label_b or 'CSV B'}")
+                st.caption(f"B - {escape_markdown(cmp_label_b or 'CSV B')}")
                 fig_b, warns_b = render_plot_from_spec(
                     compare_state["cmp_filtered_b"],
                     cmp_spec,

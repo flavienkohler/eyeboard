@@ -18,6 +18,7 @@ from plot_studio.services.templates import (
 )
 from plot_studio.state import prune_recent_config_ids
 from plot_studio.ui.context import MainDatasetContext
+from plot_studio.ui.text import escape_markdown
 
 
 def _persist_configs_with_feedback(
@@ -203,7 +204,9 @@ def render_dashboard_plot_editor(
 
     top_left, top_right = st.columns([1.7, 1], vertical_alignment="bottom")
     with top_left:
-        st.caption(f"Editing plot inside dashboard `{sel.get('name', 'Unnamed')}`.")
+        st.caption(
+            f"Editing plot inside dashboard {escape_markdown(sel.get('name', 'Unnamed'))}."
+        )
     with top_right:
         remove_disabled = len(plots) <= 1
         if st.button(
@@ -431,7 +434,7 @@ def render_plot_style_editor(
             default_width = int(default_style.get("width") or 2)
             default_dash = default_style.get("dash") or "solid"
             safe = normalize_colname(series_name).replace(" ", "_") or "series"
-            st.markdown(f"**{series_name}**")
+            st.markdown(f"**{escape_markdown(series_name)}**")
             c1, c2, c3 = st.columns([1.2, 1, 1], vertical_alignment="center")
             with c1:
                 color = st.color_picker(

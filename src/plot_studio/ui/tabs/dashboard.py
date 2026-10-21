@@ -16,6 +16,7 @@ from plot_studio.services.date_parsing import parse_dates_flexible
 from plot_studio.services.templates import validate_saved_config
 from plot_studio.state import remember_recent_config
 from plot_studio.ui.context import MainDatasetContext
+from plot_studio.ui.text import escape_markdown
 
 
 def render_dashboard_tab(dataset: MainDatasetContext) -> None:
@@ -80,14 +81,10 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
             continue
 
         with st.container(border=True):
-            st.markdown(
-                f"""
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-                  <div style="font-size:18px; font-weight:700;">{cfg.get("name", "Unnamed")}</div>
-                  <div style="opacity:0.8; font-size:12px;">Created: {cfg.get("created_at", "")}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+            title_col, created_col = st.columns([3, 1], vertical_alignment="bottom")
+            title_col.subheader(escape_markdown(cfg.get("name", "Unnamed")))
+            created_col.caption(
+                f"Created: {escape_markdown(cfg.get('created_at', ''))}"
             )
 
             config_errors = validate_saved_config(cfg)

@@ -12,6 +12,7 @@ from plot_studio.plotting.figures import (
 from plot_studio.services.columns import normalize_colname
 from plot_studio.ui.context import MainDatasetContext
 from plot_studio.ui.header import render_read_report
+from plot_studio.ui.text import escape_markdown
 
 MINI_PLOT_AUTO_RENDER_MAX_ROWS = 5_000
 MINI_PLOT_AUTO_RENDER_MAX_COLUMNS = 24
@@ -166,7 +167,7 @@ def render_preview_tab(dataset: MainDatasetContext) -> None:
             row_cols = st.columns(3)
             for offset, col in enumerate(visible_cols[start : start + 3]):
                 with row_cols[offset]:
-                    st.markdown(f"**{col}**")
+                    st.markdown(f"**{escape_markdown(col)}**")
                     mini_fig = make_column_preview_figure(
                         dataset.df[col],
                         x_series=preview_x_series,

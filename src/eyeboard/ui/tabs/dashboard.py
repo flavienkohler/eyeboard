@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from eyeboard.config import DATE_PARSE_MODES
 from eyeboard.dashboards.model import Dashboard
 from eyeboard.plotting.figures import render_plot_from_spec
 from eyeboard.services.dashboard_sync import (
@@ -13,7 +12,6 @@ from eyeboard.services.dashboard_sync import (
     compute_dashboard_sync_x_range,
     prepare_dashboard_x_columns,
 )
-from eyeboard.services.date_parsing import parse_dates_flexible
 from eyeboard.state import remember_recent_dashboard
 from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.text import escape_markdown
@@ -142,50 +140,15 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
 def render_dashboard_global_options(
     dataset: MainDatasetContext,
 ) -> tuple[pd.DataFrame, bool, str | None]:
-    """Render optional global date parsing and filtering for the dashboard."""
+    """Render the dashboard options; dates come from the shared date settings."""
     st.divider()
-    with st.expander("Global dashboard options", expanded=False):
-        sync_x_axis = st.toggle(
-            "Sync x-axis across dashboard plots",
-            value=True,
-            key="dash_sync_x_axis",
-            help="When enabled, dashboard charts share the same x-axis range when possible.",
-        )
-        date_col_dash = st.selectbox(
-            "Date/time column for dashboard (optional)",
-            options=[None] + dataset.cols,
-            index=(
-                0
-                if dataset.date_guess is None
-                else ([None] + dataset.cols).index(dataset.date_guess)
-            ),
-        )
-        dash_date_mode_default = st.session_state.get(
-            "dash_date_mode",
-            st.session_state.get("read_date_mode", "Auto-detect"),
-        )
-        if dash_date_mode_default not in DATE_PARSE_MODES:
-            dash_date_mode_default = "Auto-detect"
-        dash_date_mode = st.selectbox(
-            "Date order",
-            options=DATE_PARSE_MODES,
-            index=DATE_PARSE_MODES.index(dash_date_mode_default),
-            key="dash_date_mode",
-            help="Auto-detect infers day/month order from the selected column when possible.",
-        )
-        date_format_dash = st.text_input(
-            "Date format override (optional)",
-            value="",
-            key="dash_dateformat",
-            help="Example: %d/%m/%Y or %m/%d/%Y. If filled, this overrides auto-detection.",
-        )
-        dash_df = parse_dates_flexible(
-            dataset.df,
-            date_col_dash,
-            date_mode=dash_date_mode,
-            date_format=(date_format_dash or None),
-        )
-    return dash_df, sync_x_axis, date_col_dash
+    sync_x_axis = st.toggle(
+        "Sync x-axis across dashboard plots",
+        value=True,
+        key="dash_sync_x_axis",
+        help="When enabled, dashboard charts share the same x-axis range when possible.",
+    )
+    return dataset.df_parsed, sync_x_axis, dataset.date_col
 
 
 def render_dashboard_date_filter(

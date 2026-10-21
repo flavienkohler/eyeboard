@@ -91,3 +91,63 @@ def test_choosing_no_date_column_is_kept_across_reruns(workdir):
 
     assert not at.exception
     assert at.session_state["read_date_col"] is None
+
+
+def _chart_keys(at: AppTest) -> set[str]:
+    """Keys of the Plotly charts on the page (the key ends the element id)."""
+    return {chart.proto.id.rsplit("-", 1)[-1] for chart in at.get("plotly_chart")}
+
+
+def _add_dashboard_and_second_csv(workdir):
+    from helpers import make_dashboard, make_plot
+
+    from eyeboard.dashboards.document import serialize_document
+
+    dashboard = make_dashboard(
+        "d1", "Flow board", plots=[make_plot(x_col="date", y_cols=["flow"])]
+    )
+    (workdir / "saved_configs.json").write_text(
+        serialize_document([dashboard]), encoding="utf-8"
+    )
+    cache = workdir / "data" / ".recent_csvs"
+    (cache / "def_other.csv").write_text(CSV.replace("1,0", "9,0"), encoding="utf-8")
+    index_path = cache / "index.json"
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    index.append(
+        {
+            "id": "def",
+            "filename": "other.csv",
+            "cache_filename": "def_other.csv",
+            "file_size": 10,
+            "opened_at": "2026-10-21T09:00:00Z",
+        }
+    )
+    index_path.write_text(json.dumps(index), encoding="utf-8")
+
+
+def test_the_dashboard_tab_draws_a_saved_dashboard_with_the_shared_dates(workdir):
+    _add_dashboard_and_second_csv(workdir)
+
+    at = _run(select_recent=True)
+
+    assert not at.exception and not at.error
+    assert "Flow board" in [d.name for d in at.session_state["dashboards"]]
+    assert "dash_plot_d1" in _chart_keys(at)
+    # The dashboard tab no longer has date controls of its own.
+    labels = [w.label for w in at.selectbox] + [w.label for w in at.text_input]
+    assert "Date/time column for dashboard (optional)" not in labels
+
+
+def test_the_compare_tab_draws_both_datasets_with_the_shared_dates(workdir):
+    _add_dashboard_and_second_csv(workdir)
+    at = AppTest.from_file(str(APP), default_timeout=60)
+    at.session_state["active_csv_source"] = "recent"
+    at.session_state["active_recent_csv_id"] = "abc"
+    at.session_state["cmp_recent_csv_a"] = "abc"
+    at.session_state["cmp_recent_csv_b"] = "def"
+    at.run()
+
+    assert not at.exception and not at.error
+    assert {"cmp_plot_a_d1", "cmp_plot_b_d1"} <= _chart_keys(at)
+    labels = [w.label for w in at.selectbox]
+    assert "Shared date/time column (optional)" not in labels

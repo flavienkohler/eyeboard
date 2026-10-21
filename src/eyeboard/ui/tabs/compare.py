@@ -1,21 +1,22 @@
 """Compare tab renderer."""
 
+from dataclasses import replace
+
 import pandas as pd
 import streamlit as st
 
-from eyeboard.config import DATE_PARSE_MODES
+from eyeboard.dashboards.model import Dashboard
 from eyeboard.models import ReadOptions
 from eyeboard.plotting.figures import render_plot_from_spec
-from eyeboard.services.columns import guess_date_column, resolve_column
+from eyeboard.services.columns import resolve_column
 from eyeboard.services.dataset import DataSource, source_from_path, source_from_upload
-from eyeboard.services.date_parsing import parse_dates_flexible
 from eyeboard.services.recent_csvs import (
     format_recent_csv_details,
     get_recent_csv_cache_path,
     list_recent_csvs,
 )
 from eyeboard.state import remember_recent_dashboard
-from eyeboard.ui.cache import load_table_cached
+from eyeboard.ui.cache import load_table_cached, parse_table_cached
 from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.text import escape_markdown
 
@@ -51,6 +52,26 @@ def _load_compare_dataset(
     if error:
         st.error(f"Could not read CSV {name}: {error}")
     return df, source.label
+
+
+def _parse_compare_dataset(
+    dataset: MainDatasetContext,
+    source: DataSource,
+    df: pd.DataFrame,
+) -> tuple[pd.DataFrame, str | None]:
+    """Parse the date column of a compared dataset with the shared date settings.
+
+    The date column chosen for the main dataset is matched by name in the compared
+    file; returns the parsed table and the matched column (or ``None``).
+    """
+    settings = dataset.date_settings
+    column = (
+        resolve_column(settings.column, list(df.columns)) if settings.column else None
+    )
+    parsed = parse_table_cached(
+        source, dataset.read_options, replace(settings, column=column), df
+    )
+    return parsed.df, column
 
 
 def render_compare_tab(dataset: MainDatasetContext) -> None:
@@ -99,11 +120,13 @@ def render_compare_tab(dataset: MainDatasetContext) -> None:
         if cmp_recent_b is not None and cmp_recent_b in recent_by_id:
             st.caption(format_recent_csv_details(recent_by_id[cmp_recent_b]))
 
+    cmp_source_a = _compare_source(cmp_up_a, cmp_recent_a, recent_by_id)
+    cmp_source_b = _compare_source(cmp_up_b, cmp_recent_b, recent_by_id)
     cmp_df_a, cmp_label_a = _load_compare_dataset(
-        "A", _compare_source(cmp_up_a, cmp_recent_a, recent_by_id), dataset.read_options
+        "A", cmp_source_a, dataset.read_options
     )
     cmp_df_b, cmp_label_b = _load_compare_dataset(
-        "B", _compare_source(cmp_up_b, cmp_recent_b, recent_by_id), dataset.read_options
+        "B", cmp_source_b, dataset.read_options
     )
 
     if cmp_df_a is None or cmp_df_b is None:
@@ -146,7 +169,9 @@ def render_compare_tab(dataset: MainDatasetContext) -> None:
         st.info("Select at least one dashboard to compare.")
         return
 
-    compare_state = render_compare_options(dataset, cmp_df_a, cmp_df_b)
+    compare_state = render_compare_options(
+        dataset, cmp_source_a, cmp_df_a, cmp_source_b, cmp_df_b
+    )
     render_compare_results(
         cmp_selected_dashboard_ids,
         cmp_dashboards_by_id,
@@ -158,68 +183,17 @@ def render_compare_tab(dataset: MainDatasetContext) -> None:
 
 def render_compare_options(
     dataset: MainDatasetContext,
+    cmp_source_a: DataSource,
     cmp_df_a: pd.DataFrame,
+    cmp_source_b: DataSource,
     cmp_df_b: pd.DataFrame,
 ) -> dict[str, object]:
-    """Render compare-specific options and return parsed comparison state."""
-    cmp_cols_union = sorted(
-        list(set(cmp_df_a.columns).union(set(cmp_df_b.columns))),
-        key=lambda col: str(col).lower(),
+    """Parse both datasets with the shared date settings and apply the shared range."""
+    cmp_df_a_parsed, cmp_resolved_date_a = _parse_compare_dataset(
+        dataset, cmp_source_a, cmp_df_a
     )
-    cmp_date_guess = st.session_state.get("read_date_col")
-    if cmp_date_guess not in cmp_cols_union:
-        cmp_date_guess = guess_date_column([str(col) for col in cmp_cols_union])
-
-    with st.expander("Compare options", expanded=False):
-        cmp_date_options = [None] + cmp_cols_union
-        cmp_date_col = st.selectbox(
-            "Shared date/time column (optional)",
-            options=cmp_date_options,
-            index=(
-                cmp_date_options.index(cmp_date_guess)
-                if cmp_date_guess in cmp_date_options
-                else 0
-            ),
-            key="cmp_date_col",
-        )
-        cmp_date_mode_default = st.session_state.get(
-            "cmp_date_mode",
-            st.session_state.get("read_date_mode", "Auto-detect"),
-        )
-        if cmp_date_mode_default not in DATE_PARSE_MODES:
-            cmp_date_mode_default = "Auto-detect"
-        cmp_date_mode = st.selectbox(
-            "Date order",
-            options=DATE_PARSE_MODES,
-            index=DATE_PARSE_MODES.index(cmp_date_mode_default),
-            key="cmp_date_mode",
-            help="Auto-detect infers day/month order from the selected column when possible.",
-        )
-        cmp_date_format = st.text_input(
-            "Date format override (optional)",
-            value=(st.session_state.get("read_date_format", "") or ""),
-            key="cmp_date_format",
-            help="Example: %d/%m/%Y or %m/%d/%Y. If filled, this overrides auto-detection.",
-        ).strip()
-
-    cmp_resolved_date_a = (
-        resolve_column(cmp_date_col, list(cmp_df_a.columns)) if cmp_date_col else None
-    )
-    cmp_resolved_date_b = (
-        resolve_column(cmp_date_col, list(cmp_df_b.columns)) if cmp_date_col else None
-    )
-
-    cmp_df_a_parsed = parse_dates_flexible(
-        cmp_df_a,
-        cmp_resolved_date_a,
-        date_mode=cmp_date_mode,
-        date_format=(cmp_date_format or None),
-    )
-    cmp_df_b_parsed = parse_dates_flexible(
-        cmp_df_b,
-        cmp_resolved_date_b,
-        date_mode=cmp_date_mode,
-        date_format=(cmp_date_format or None),
+    cmp_df_b_parsed, cmp_resolved_date_b = _parse_compare_dataset(
+        dataset, cmp_source_b, cmp_df_b
     )
 
     cmp_filtered_a = cmp_df_a_parsed
@@ -276,7 +250,7 @@ def render_compare_options(
 
 def render_compare_results(
     cmp_selected_dashboard_ids: list[str],
-    cmp_dashboards_by_id: dict[str, dict],
+    cmp_dashboards_by_id: dict[str, Dashboard],
     cmp_label_a: str,
     cmp_label_b: str,
     compare_state: dict[str, object],

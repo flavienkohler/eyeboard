@@ -2,10 +2,8 @@ import pandas as pd
 
 from plot_studio.services.dashboard_sync import (
     _compute_axis_range,
-    coerce_component_sync_range,
     compute_dashboard_sync_x_range,
     prepare_dashboard_x_columns,
-    sync_ranges_match,
 )
 
 
@@ -77,25 +75,6 @@ def test_prepare_dashboard_x_columns_parses_datetime_like_text_columns():
     )
 
     assert pd.api.types.is_datetime64_any_dtype(prepared["date"])
-
-
-def test_coerce_component_sync_range_parses_datetime_payload():
-    coerced = coerce_component_sync_range(
-        ["2024-01-01 00:00:00", "2024-01-03 00:00:00"],
-        (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-04")),
-    )
-
-    assert coerced == (
-        pd.Timestamp("2024-01-01 00:00:00"),
-        pd.Timestamp("2024-01-03 00:00:00"),
-    )
-
-
-def test_sync_ranges_match_handles_equal_timestamps():
-    assert sync_ranges_match(
-        (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-02")),
-        (pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-02")),
-    )
 
 
 def test_compute_axis_range_adds_padding_for_visible_values():

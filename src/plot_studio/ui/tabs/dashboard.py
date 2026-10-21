@@ -107,11 +107,8 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
                 if sync_x_axis
                 else None
             )
-            dashboard_sync_state_key = f"dash_zoom_sync_range_{cfg_id}"
             dashboard_sync_range = (
-                st.session_state.get(dashboard_sync_state_key)
-                or dashboard_default_sync_range
-                or shared_sync_default_range
+                dashboard_default_sync_range or shared_sync_default_range
             )
             if sync_x_axis:
                 st.caption(
@@ -229,8 +226,7 @@ def render_dashboard_date_filter(
                 if dash_filtered.empty:
                     st.warning("This date range leaves the dashboard with no rows.")
 
-    st.session_state["dash_df_filtered"] = dash_filtered
-    return st.session_state.get("dash_df_filtered", dash_df)
+    return dash_filtered
 
 
 def build_dashboard_figure(

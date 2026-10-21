@@ -106,52 +106,6 @@ def compute_dashboard_sync_x_range(
     return min_x, max_x
 
 
-def coerce_component_sync_range(
-    component_range: object,
-    reference_range: tuple[object, object] | None,
-) -> tuple[object, object] | None:
-    """Convert a component-returned x-range into the app's internal range shape."""
-    if reference_range is None or not isinstance(component_range, (list, tuple)):
-        return None
-    if len(component_range) != 2:
-        return None
-
-    ref_min, ref_max = reference_range
-    raw_min, raw_max = component_range
-
-    if isinstance(ref_min, pd.Timestamp) and isinstance(ref_max, pd.Timestamp):
-        parsed_min = pd.to_datetime(raw_min, errors="coerce")
-        parsed_max = pd.to_datetime(raw_max, errors="coerce")
-        if pd.isna(parsed_min) or pd.isna(parsed_max):
-            return None
-        return parsed_min, parsed_max
-
-    if isinstance(ref_min, (int, float)) and isinstance(ref_max, (int, float)):
-        try:
-            return float(raw_min), float(raw_max)
-        except (TypeError, ValueError):
-            return None
-
-    return None
-
-
-def sync_ranges_match(
-    left: tuple[object, object] | None,
-    right: tuple[object, object] | None,
-) -> bool:
-    """Compare two sync ranges while tolerating datetime payload variations."""
-    if left is None or right is None:
-        return left is right
-
-    left_min, left_max = left
-    right_min, right_max = right
-
-    if isinstance(left_min, pd.Timestamp) and isinstance(right_min, pd.Timestamp):
-        return left_min == right_min and left_max == right_max
-
-    return left == right
-
-
 def apply_visible_y_ranges(
     fig,
     df: pd.DataFrame,

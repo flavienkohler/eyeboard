@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Removed the leftover code of the abandoned component-based zoom synchronisation. X-axis zoom is still synchronised within a dashboard, natively by Plotly through shared x-axes.
+- Dashboard date filtering no longer keeps a copy of the filtered dataframe in session state.
+
 ## 0.2.0 - 2026-07-01
 
 - Added recent CSV history with quick access in the main loader and compare tab.

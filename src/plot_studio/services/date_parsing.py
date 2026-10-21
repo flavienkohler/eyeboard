@@ -1,9 +1,12 @@
 """Date parsing and date-order inference helpers."""
 
+import logging
 import re
 import warnings
 
 import pandas as pd
+
+LOGGER = logging.getLogger(__name__)
 
 DATE_ORDER_PATTERN = re.compile(
     r"^\s*(?P<first>\d{1,4})[./-](?P<second>\d{1,2})[./-](?P<third>\d{1,4})(?:\D|$)"
@@ -135,6 +138,9 @@ def parse_dates_flexible(
             date_mode=date_mode,
             date_format=date_format,
         )
-    except Exception:
+    except (ValueError, TypeError, OverflowError):
+        LOGGER.warning(
+            "Date parsing of column '%s' failed; using generic parsing.", date_col
+        )
         parsed_df[date_col] = to_datetime_safely(parsed_df[date_col])
     return parsed_df

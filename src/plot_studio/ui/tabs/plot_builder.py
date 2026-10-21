@@ -1,6 +1,6 @@
 """Plot Builder tab renderer."""
 
-import datetime
+import logging
 import uuid
 from typing import Any
 
@@ -10,6 +10,7 @@ import streamlit as st
 from plot_studio.config import DEFAULT_SERIES_COLORS, PLOT_TYPES, TEMPLATES
 from plot_studio.plotting.figures import render_plot_from_spec
 from plot_studio.plotting.specs import build_plot_spec_from_builder
+from plot_studio.services.clock import utc_now_iso
 from plot_studio.services.columns import normalize_colname
 from plot_studio.services.templates import (
     find_saved_config_by_name,
@@ -18,6 +19,8 @@ from plot_studio.services.templates import (
 from plot_studio.state import remember_recent_config
 from plot_studio.ui.context import MainDatasetContext
 from plot_studio.ui.text import escape_markdown
+
+LOGGER = logging.getLogger(__name__)
 
 
 def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
@@ -152,7 +155,8 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
 
             if fig is not None:
                 st.plotly_chart(fig, width="stretch", key="plot_builder_preview")
-        except Exception as exc:
+        except Exception as exc:  # UI boundary: show the problem, keep the traceback
+            LOGGER.exception("Plot generation failed.")
             st.error(f"Error generating plot: {exc}")
 
     st.divider()
@@ -247,7 +251,7 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
             updated_dashboard = {
                 "id": str(uuid.uuid4()),
                 "name": dashboard_name,
-                "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+                "created_at": utc_now_iso(),
                 "plots": [new_plot],
             }
             new_saved_configs = [*st.session_state["saved_configs"], updated_dashboard]

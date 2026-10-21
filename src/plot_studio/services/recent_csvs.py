@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,10 @@ from plot_studio.config import (
     RECENT_CSV_INDEX_FILE,
     RECENT_CSV_LIMIT,
 )
+from plot_studio.services.clock import utc_now_iso
+from plot_studio.services.fileio import write_text_atomic
+
+LOGGER = logging.getLogger(__name__)
 
 
 def load_recent_csv_index(
@@ -23,7 +28,14 @@ def load_recent_csv_index(
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except (OSError, ValueError):
+        # Keep the unreadable file aside: the next save would otherwise overwrite it.
+        LOGGER.warning("Recent CSV index %s is unreadable; moving it aside.", path)
+        corrupt_path = path.with_name(path.name + ".corrupt")
+        try:
+            path.replace(corrupt_path)
+        except OSError:
+            LOGGER.exception("Could not move the unreadable index aside.")
         return []
 
     if not isinstance(data, list):
@@ -36,8 +48,7 @@ def save_recent_csv_index(
     path: Path = RECENT_CSV_INDEX_FILE,
 ) -> None:
     """Persist recent CSV metadata to disk."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_text_atomic(path, json.dumps(entries, ensure_ascii=False, indent=2))
 
 
 def sanitize_filename(filename: str) -> str:
@@ -56,8 +67,11 @@ def format_recent_csv_details(entry: dict[str, Any]) -> str:
 
     opened_at = entry.get("opened_at", "")
     try:
-        opened_label = datetime.fromisoformat(opened_at).strftime("%Y-%m-%d %H:%M")
-    except Exception:
+        opened = datetime.fromisoformat(opened_at)
+        if opened.tzinfo is not None:
+            opened = opened.astimezone()  # show stored UTC times in local time
+        opened_label = opened.strftime("%Y-%m-%d %H:%M")
+    except (TypeError, ValueError):
         opened_label = opened_at or "unknown time"
 
     return f"{size_label} • {opened_label}"
@@ -136,7 +150,7 @@ def remember_recent_csv(
     cache_path = cache_dir / cache_filename
     cache_path.write_bytes(raw_bytes)
 
-    opened_at = datetime.now().isoformat(timespec="seconds")
+    opened_at = utc_now_iso()
     new_entry = {
         "id": digest,
         "filename": filename,
@@ -181,7 +195,7 @@ def touch_recent_csv(
         return None
 
     updated_entry = dict(matching_entry)
-    updated_entry["opened_at"] = datetime.now().isoformat(timespec="seconds")
+    updated_entry["opened_at"] = utc_now_iso()
     remaining_entries = [entry for entry in entries if entry.get("id") != entry_id]
     save_recent_csv_index([updated_entry, *remaining_entries][:max_items], index_path)
     return updated_entry

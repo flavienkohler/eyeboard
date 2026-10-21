@@ -61,19 +61,16 @@ def apply_series_styles(
             if dash:
                 line_updates["dash"] = dash
             if line_updates:
-                trace.update(line=line_updates)
+                try:
+                    trace.update(line=line_updates)
+                except ValueError:
+                    LOGGER.warning("Ignoring invalid line style for series %r.", name)
 
-        if hasattr(trace, "marker") and color:
+        if color and hasattr(trace, "marker"):
             try:
                 trace.update(marker={"color": color})
-            except Exception:
-                pass
-
-        if trace.type == "bar" and color:
-            try:
-                trace.update(marker={"color": color})
-            except Exception:
-                pass
+            except ValueError:
+                LOGGER.warning("Ignoring invalid color %r for series %r.", color, name)
 
 
 def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:

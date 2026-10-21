@@ -1,6 +1,5 @@
 """Dashboards manager tab renderer."""
 
-import datetime
 import json
 import uuid
 
@@ -9,6 +8,7 @@ import streamlit as st
 from plot_studio.config import PLOT_TYPES, TEMPLATES
 from plot_studio.plotting.figures import render_plot_from_spec
 from plot_studio.plotting.specs import build_plot_spec_from_builder
+from plot_studio.services.clock import utc_now_iso
 from plot_studio.services.columns import normalize_colname
 from plot_studio.services.templates import (
     persist_saved_configs_to_disk,
@@ -110,35 +110,33 @@ def render_templates_tab(dataset: MainDatasetContext) -> None:
                 try:
                     json.loads(edited)
                     st.success("Valid JSON.")
-                except Exception as exc:
+                except json.JSONDecodeError as exc:
                     st.error(f"Invalid JSON: {exc}")
         with col_b:
             if st.button("Save JSON to dashboard", width="stretch"):
                 try:
                     new_obj = json.loads(edited)
-                    if not isinstance(new_obj, dict):
-                        st.error("Dashboard JSON must be an object.")
-                    else:
-                        new_obj.setdefault("id", sel_id)
-                        validation_errors = validate_saved_config(new_obj)
-                        if validation_errors:
-                            st.error("Dashboard JSON is structurally invalid.")
-                            for error in validation_errors:
-                                st.warning(error)
-                            return
-                        new_configs = []
-                        for cfg in configs:
-                            if cfg.get("id") == sel_id:
-                                new_configs.append(new_obj)
-                            else:
-                                new_configs.append(cfg)
-                        if _persist_configs_with_feedback(
-                            new_configs,
-                            success_message="Dashboard updated.",
-                        ):
-                            st.rerun()
-                except Exception as exc:
-                    st.error(f"Could not save: {exc}")
+                except json.JSONDecodeError as exc:
+                    st.error(f"Could not save, invalid JSON: {exc}")
+                    return
+                if not isinstance(new_obj, dict):
+                    st.error("Dashboard JSON must be an object.")
+                    return
+                new_obj.setdefault("id", sel_id)
+                validation_errors = validate_saved_config(new_obj)
+                if validation_errors:
+                    st.error("Dashboard JSON is structurally invalid.")
+                    for error in validation_errors:
+                        st.warning(error)
+                    return
+                new_configs = [
+                    new_obj if cfg.get("id") == sel_id else cfg for cfg in configs
+                ]
+                if _persist_configs_with_feedback(
+                    new_configs,
+                    success_message="Dashboard updated.",
+                ):
+                    st.rerun()
 
     st.divider()
     st.markdown("##### Import dashboard JSON")
@@ -150,32 +148,28 @@ def render_templates_tab(dataset: MainDatasetContext) -> None:
         if upload_signature != st.session_state.get("last_imported_json_signature"):
             try:
                 imported = json.loads(upl.getvalue().decode("utf-8"))
-                if not isinstance(imported, dict):
-                    st.error("Imported file must be a JSON object.")
-                else:
-                    imported.setdefault("id", str(uuid.uuid4()))
-                    imported.setdefault(
-                        "created_at",
-                        datetime.datetime.utcnow().isoformat() + "Z",
-                    )
-                    imported.setdefault("plots", [])
-                    validation_errors = validate_saved_config(imported)
-                    if validation_errors:
-                        st.error("Imported dashboard could not be read correctly.")
-                        for error in validation_errors:
-                            st.warning(error)
-                        return
-                    new_configs = [*st.session_state["saved_configs"], imported]
-                    if _persist_configs_with_feedback(
-                        new_configs,
-                        success_message="Imported dashboard.",
-                    ):
-                        st.session_state["last_imported_json_signature"] = (
-                            upload_signature
-                        )
-                        st.rerun()
-            except Exception as exc:
-                st.error(f"Import failed: {exc}")
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                st.error(f"Import failed, the file is not valid JSON: {exc}")
+                return
+            if not isinstance(imported, dict):
+                st.error("Imported file must be a JSON object.")
+                return
+            imported.setdefault("id", str(uuid.uuid4()))
+            imported.setdefault("created_at", utc_now_iso())
+            imported.setdefault("plots", [])
+            validation_errors = validate_saved_config(imported)
+            if validation_errors:
+                st.error("Imported dashboard could not be read correctly.")
+                for error in validation_errors:
+                    st.warning(error)
+                return
+            new_configs = [*st.session_state["saved_configs"], imported]
+            if _persist_configs_with_feedback(
+                new_configs,
+                success_message="Imported dashboard.",
+            ):
+                st.session_state["last_imported_json_signature"] = upload_signature
+                st.rerun()
 
 
 def render_dashboard_plot_editor(

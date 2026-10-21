@@ -9,6 +9,9 @@
 - Dashboard date filtering no longer keeps a copy of the filtered dataframe in session state.
 - Numeric conversion no longer fails silently: text values that cannot be read as numbers are ignored and reported (with a hint for decimal commas), text series are flagged, and aggregation no longer falls back to raw data or crashes on text columns.
 - Plots only copy the columns they use instead of the whole dataset.
+- Error handling is narrower and logged: unexpected failures are no longer swallowed, a corrupt recent-files index is moved aside instead of overwritten, and invalid series colors are reported in the log.
+- `saved_configs.json` and the recent-files index are written atomically, so a crash can no longer leave a half-written file.
+- Timestamps are stored in UTC (`...Z`) and shown in local time.
 
 ## 0.2.0 - 2026-07-01
 

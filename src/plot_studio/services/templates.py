@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from plot_studio.config import SAVED_CONFIGS_FILE
+from plot_studio.services.fileio import write_text_atomic
 
 
 def load_saved_configs_from_disk(
@@ -17,7 +18,7 @@ def load_saved_configs_from_disk(
 
     try:
         data = json.loads(config_path.read_text(encoding="utf-8"))
-    except Exception as exc:
+    except (OSError, ValueError) as exc:  # ValueError covers bad JSON and bad UTF-8
         return [], f"Could not read saved templates from `{config_path}`: {exc}"
 
     if isinstance(data, list):
@@ -32,13 +33,11 @@ def persist_saved_configs_to_disk(
     """Persist saved plot templates to disk."""
     config_path = Path(path)
     try:
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(
-            json.dumps(saved_configs, ensure_ascii=False, indent=2),
-            encoding="utf-8",
+        write_text_atomic(
+            config_path, json.dumps(saved_configs, ensure_ascii=False, indent=2)
         )
         return None
-    except Exception as exc:
+    except (OSError, TypeError, ValueError) as exc:
         return f"Could not save templates to `{config_path}`: {exc}"
 
 

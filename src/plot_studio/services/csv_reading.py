@@ -1,14 +1,28 @@
 """CSV parsing and loading helpers."""
 
-import os
+import io
+import logging
+import re
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from pandas.api.types import is_object_dtype
 
-from plot_studio.config import CANDIDATE_SEPARATORS
+from plot_studio.config import CANDIDATE_SEPARATORS, ENCODING_OPTIONS
 from plot_studio.models import CsvReadReport
+
+LOGGER = logging.getLogger(__name__)
+
+SNIFF_CHARS = 30_000
+_UTF8_BOM = b"\xef\xbb\xbf"
+_UTF16_BOMS = (b"\xff\xfe", b"\xfe\xff")
+_RENAMED_DUPLICATE = re.compile(r"^(?P<base>.+)\.\d+$")
+
+
+class CsvReadError(Exception):
+    """A CSV could not be read; the message is meant to be shown to the user."""
 
 
 def _separator_label(sep: str | None) -> str:
@@ -54,9 +68,11 @@ def _build_read_report(
     inferred_sep: str | None,
     header: int | Sequence[int] | None,
     skiprows: Sequence[int] | None,
+    encoding_label: str,
+    warnings: list[str],
 ) -> CsvReadReport:
     """Create a compact summary of the read settings used for a CSV."""
-    warnings: list[str] = []
+    warnings = list(warnings)
     separator_auto_detected = sep is None
 
     if sep is not None:
@@ -64,9 +80,10 @@ def _build_read_report(
     elif inferred_sep is not None:
         separator_label = f"Auto-detected {_separator_label(inferred_sep)}"
     else:
-        separator_label = "Auto-detect (pandas sniffing)"
+        separator_label = "Comma (,) (assumed)"
         warnings.append(
-            "Separator could not be confidently auto-detected; pandas sniffing was used."
+            "No separator could be detected; a comma was assumed. "
+            "Choose one in Reading options if the columns look wrong."
         )
 
     return CsvReadReport(
@@ -79,6 +96,7 @@ def _build_read_report(
         decimal_label=_decimal_label(decimal),
         header_label=_header_label(header, skiprows),
         warnings=warnings,
+        encoding_label=encoding_label,
     )
 
 
@@ -108,6 +126,50 @@ def detect_separator_from_sample(sample: str, decimal: str = ".") -> str | None:
     return best_sep
 
 
+def decode_csv_bytes(
+    raw: bytes,
+    encoding: str | None = None,
+) -> tuple[str, str, list[str]]:
+    """Decode CSV bytes once and return ``(text, encoding_label, warnings)``.
+
+    With ``encoding=None`` the encoding is detected: a byte-order mark wins, then
+    strict UTF-8, then Windows-1252 (what Excel writes in Western locales) and
+    finally Latin-1, which can decode any byte. A UTF-8 byte-order mark is
+    stripped so it never ends up in the first column name.
+    """
+    if encoding is not None:
+        text = raw.decode("utf-8-sig" if encoding == "utf-8" else encoding)
+        return text, _encoding_label(encoding), []
+
+    if raw.startswith(_UTF16_BOMS):
+        return raw.decode("utf-16"), "UTF-16", []
+    if raw.startswith(_UTF8_BOM):
+        return raw.decode("utf-8-sig"), "UTF-8", []
+
+    try:
+        return raw.decode("utf-8"), "UTF-8", []
+    except UnicodeDecodeError:
+        pass
+
+    for fallback in ("cp1252", "latin-1"):
+        try:
+            text = raw.decode(fallback)
+        except UnicodeDecodeError:
+            continue
+        label = _encoding_label(fallback)
+        return text, label, [f"The file is not valid UTF-8; it was decoded as {label}."]
+
+    raise CsvReadError("The file could not be decoded.")  # pragma: no cover
+
+
+def _encoding_label(codec: str) -> str:
+    """Return the display label of a codec name."""
+    for label, known_codec in ENCODING_OPTIONS.items():
+        if known_codec == codec:
+            return label.split(" (")[0]
+    return {"latin-1": "Latin-1"}.get(codec, codec)
+
+
 def flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Flatten MultiIndex columns if present."""
     if isinstance(df.columns, pd.MultiIndex):
@@ -131,6 +193,111 @@ def strip_object_columns(df: pd.DataFrame) -> pd.DataFrame:
     return stripped
 
 
+def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
+    """Strip whitespace and stray byte-order marks from string column names."""
+    cleaned = df.copy()
+    cleaned.columns = [
+        name.replace("﻿", "").strip() if isinstance(name, str) else name
+        for name in df.columns
+    ]
+    return cleaned
+
+
+def drop_empty_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Drop columns without any value and return the frame and the dropped count."""
+    non_empty = df.dropna(axis=1, how="all")
+    return non_empty, len(df.columns) - len(non_empty.columns)
+
+
+def find_renamed_duplicates(columns: Sequence[object]) -> list[str]:
+    """Return column names that pandas renamed because they were duplicated."""
+    names = {name for name in columns if isinstance(name, str)}
+    renamed = []
+    for name in columns:
+        match = _RENAMED_DUPLICATE.match(name) if isinstance(name, str) else None
+        if match and match.group("base") in names:
+            renamed.append(name)
+    return renamed
+
+
+def read_csv_bytes(
+    raw: bytes,
+    *,
+    decimal: str,
+    sep: str | None,
+    header: int | Sequence[int] | None,
+    skiprows: Sequence[int] | None,
+    encoding: str | None = None,
+    source_kind: str = "Upload",
+    source_label: str = "",
+) -> tuple[pd.DataFrame, CsvReadReport]:
+    """Read CSV bytes into a cleaned dataframe and a report.
+
+    This is the pure core of the reader: the same bytes and options always give
+    the same result, so it is easy to test (and to cache). Raises
+    ``CsvReadError`` with a message meant for the user when the file cannot be
+    read.
+    """
+    try:
+        text, encoding_label, warnings = decode_csv_bytes(raw, encoding)
+    except UnicodeDecodeError as exc:
+        raise CsvReadError(
+            "The file could not be decoded with the selected encoding. "
+            "Try another one in Reading options."
+        ) from exc
+
+    if not text.strip():
+        raise CsvReadError("The file is empty or has no columns to read.")
+
+    inferred_sep = detect_separator_from_sample(text[:SNIFF_CHARS], decimal=decimal)
+    # Single-column files have no separator to detect; a comma is then harmless.
+    effective_sep = sep if sep is not None else (inferred_sep or ",")
+
+    try:
+        df = pd.read_csv(
+            io.StringIO(text),
+            sep=effective_sep,
+            decimal=decimal,
+            header=header,
+            skiprows=skiprows,
+            engine="c",
+        )
+    except pd.errors.EmptyDataError as exc:
+        raise CsvReadError("The file is empty or has no columns to read.") from exc
+    except (pd.errors.ParserError, ValueError) as exc:
+        raise CsvReadError(
+            "The file could not be parsed with the current separator, header or "
+            f"decimal settings. Details: {exc}"
+        ) from exc
+
+    cleaned = flatten_columns(df)
+    cleaned = clean_column_names(cleaned)
+    cleaned, dropped_count = drop_empty_columns(cleaned)
+    cleaned = strip_object_columns(cleaned)
+
+    if dropped_count:
+        warnings.append(f"Dropped {dropped_count} empty column(s).")
+    renamed = find_renamed_duplicates(list(cleaned.columns))
+    if renamed:
+        warnings.append(
+            "Duplicate column names were renamed: " + ", ".join(sorted(renamed)) + "."
+        )
+
+    report = _build_read_report(
+        source_kind=source_kind,
+        source_label=source_label,
+        df=cleaned,
+        decimal=decimal,
+        sep=sep,
+        inferred_sep=inferred_sep,
+        header=header,
+        skiprows=skiprows,
+        encoding_label=encoding_label,
+        warnings=warnings,
+    )
+    return cleaned, report
+
+
 def read_csv_input(
     uploaded_file: Any,
     csv_path: str,
@@ -140,57 +307,43 @@ def read_csv_input(
     header: int | Sequence[int] | None,
     skiprows: Sequence[int] | None,
     path_source_kind: str = "Server path",
+    encoding: str | None = None,
 ) -> tuple[pd.DataFrame | None, str, str | None, CsvReadReport | None]:
-    """Read CSV content from an uploaded file or a filesystem path."""
+    """Read CSV content from an uploaded file or a filesystem path.
+
+    Returns ``(dataframe, label, error_message, report)``; on failure the
+    dataframe is ``None`` and the error message is meant for the user.
+    """
     if uploaded_file is None and not (csv_path or "").strip():
         return None, "", None, None
 
     try:
         if uploaded_file is not None:
-            raw_bytes = uploaded_file.getvalue()
+            raw = uploaded_file.getvalue()
             label = uploaded_file.name
             source_kind = "Upload"
-            sample = raw_bytes[:30_000].decode("utf-8", errors="ignore")
-            inferred_sep = detect_separator_from_sample(sample, decimal=decimal)
-            effective_sep = inferred_sep if sep is None else sep
-            df = pd.read_csv(
-                uploaded_file,
-                sep=effective_sep,
-                decimal=decimal,
-                header=header,
-                skiprows=skiprows,
-                engine="python",
-            )
         else:
-            trimmed_path = csv_path.strip()
-            label = os.path.basename(trimmed_path)
+            path = Path(csv_path.strip())
+            raw = path.read_bytes()
+            label = path.name
             source_kind = path_source_kind
-            with open(trimmed_path, "rb") as file_obj:
-                raw_bytes = file_obj.read()
-            sample = raw_bytes[:30_000].decode("utf-8", errors="ignore")
-            inferred_sep = detect_separator_from_sample(sample, decimal=decimal)
-            effective_sep = inferred_sep if sep is None else sep
-            df = pd.read_csv(
-                trimmed_path,
-                sep=effective_sep,
-                decimal=decimal,
-                header=header,
-                skiprows=skiprows,
-                engine="python",
-            )
 
-        cleaned = flatten_columns(df)
-        cleaned = strip_object_columns(cleaned)
-        read_report = _build_read_report(
-            source_kind=source_kind,
-            source_label=label,
-            df=cleaned,
+        df, report = read_csv_bytes(
+            raw,
             decimal=decimal,
             sep=sep,
-            inferred_sep=inferred_sep,
             header=header,
             skiprows=skiprows,
+            encoding=encoding,
+            source_kind=source_kind,
+            source_label=label,
         )
-        return cleaned, label, None, read_report
-    except Exception as exc:
+    except CsvReadError as exc:
         return None, "", str(exc), None
+    except OSError as exc:
+        return None, "", f"The file could not be opened: {exc}", None
+    except Exception:
+        LOGGER.exception("Unexpected error while reading a CSV.")
+        raise
+
+    return df, label, None, report

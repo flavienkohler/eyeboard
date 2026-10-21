@@ -16,3 +16,4 @@ class CsvReadReport:
     decimal_label: str
     header_label: str
     warnings: list[str] = field(default_factory=list)
+    encoding_label: str = "UTF-8"

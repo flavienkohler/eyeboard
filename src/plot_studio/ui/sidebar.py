@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from plot_studio.config import DATE_PARSE_MODES
+from plot_studio.config import DATE_PARSE_MODES, ENCODING_OPTIONS
 from plot_studio.services.columns import guess_date_column
 from plot_studio.services.recent_csvs import (
     format_recent_csv_details,
@@ -196,6 +196,13 @@ def render_reading_options() -> ReadingOptions:
         elif header_label == "No header":
             header = None
 
+        encoding_label = st.selectbox(
+            "Encoding",
+            list(ENCODING_OPTIONS),
+            index=0,
+            help="Auto-detect tries UTF-8, then Windows-1252. Change it if accents look wrong.",
+        )
+
         st.markdown("##### Date parsing")
         sidebar_df = st.session_state.get("df")
         sidebar_cols = (
@@ -250,4 +257,5 @@ def render_reading_options() -> ReadingOptions:
         skiprows=skiprows,
         date_mode=st.session_state.get("read_date_mode", "Auto-detect"),
         date_format=date_format_input or None,
+        encoding=ENCODING_OPTIONS[encoding_label],
     )

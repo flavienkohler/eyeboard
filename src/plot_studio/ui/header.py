@@ -80,11 +80,12 @@ def render_read_report(dataset: MainDatasetContext) -> None:
                 f"{read_report.source_kind}: `{read_report.source_label or dataset.label}`"
             )
 
-        c1, c2, c3, c4 = st.columns(4)
+        c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Separator", read_report.separator_label)
         c2.metric("Decimal", read_report.decimal_label)
-        c3.metric("Header", read_report.header_label)
-        c4.metric("Date Parse", parse_summary)
+        c3.metric("Encoding", read_report.encoding_label)
+        c4.metric("Header", read_report.header_label)
+        c5.metric("Date Parse", parse_summary)
 
         date_details = (
             f"Date column: `{dataset.date_col}` | Mode: `{dataset.date_parse_mode}`"

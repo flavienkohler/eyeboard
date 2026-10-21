@@ -87,6 +87,7 @@ def render_compare_tab(
         sep=reading_options.sep,
         header=reading_options.header,
         skiprows=reading_options.skiprows,
+        encoding=reading_options.encoding,
         path_source_kind=cmp_source_kind_a,
     )
     cmp_df_b, cmp_label_b, cmp_err_b, _ = read_csv_input(
@@ -96,6 +97,7 @@ def render_compare_tab(
         sep=reading_options.sep,
         header=reading_options.header,
         skiprows=reading_options.skiprows,
+        encoding=reading_options.encoding,
         path_source_kind=cmp_source_kind_b,
     )
 

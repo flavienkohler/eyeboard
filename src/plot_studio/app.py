@@ -57,6 +57,7 @@ def main() -> None:
         sep=sidebar_selection.reading_options.sep,
         header=sidebar_selection.reading_options.header,
         skiprows=sidebar_selection.reading_options.skiprows,
+        encoding=sidebar_selection.reading_options.encoding,
         path_source_kind=path_source_kind,
     )
 

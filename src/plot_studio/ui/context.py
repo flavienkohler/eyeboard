@@ -18,6 +18,7 @@ class ReadingOptions:
     skiprows: list[int] | None
     date_mode: str
     date_format: str | None
+    encoding: str | None = None
 
 
 @dataclass(slots=True)

@@ -13,6 +13,12 @@ APP_HEADER_SUBTITLE = (
 )
 
 CANDIDATE_SEPARATORS = [",", ";", "\t", "|"]
+ENCODING_OPTIONS = {
+    "Auto-detect": None,
+    "UTF-8": "utf-8",
+    "Windows-1252 (Excel)": "cp1252",
+    "UTF-16": "utf-16",
+}
 DATE_KEYWORDS = ("date", "time", "datum", "zeit", "datetime")
 DATE_PARSE_MODES = ["Auto-detect", "Day-first", "Month-first"]
 SAVED_CONFIGS_FILE = "saved_configs.json"

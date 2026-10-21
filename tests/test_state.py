@@ -1,13 +1,15 @@
+from helpers import make_dashboard
+
 from eyeboard.state import initialize_session_state, remember_recent_dashboard
+
+
+def _dashboards(*ids):
+    return [make_dashboard(dashboard_id, dashboard_id) for dashboard_id in ids]
 
 
 def test_remember_recent_dashboard_keeps_most_recent_first():
     session_state = {
-        "dashboards": [
-            {"id": "dashboard-1"},
-            {"id": "dashboard-2"},
-            {"id": "dashboard-3"},
-        ],
+        "dashboards": _dashboards("dashboard-1", "dashboard-2", "dashboard-3"),
         "recent_dashboard_ids": ["dashboard-2", "dashboard-1"],
     }
 
@@ -21,13 +23,13 @@ def test_remember_recent_dashboard_keeps_most_recent_first():
     ]
 
 
-def test_initialize_session_state_prunes_deleted_recent_configs():
+def test_initialize_session_state_prunes_deleted_recent_dashboards():
     session_state = {
-        "dashboards": [{"id": "dashboard-1"}, {"id": "dashboard-3"}],
-        "dashboards_load_error": None,
+        "dashboards": _dashboards("dashboard-1", "dashboard-3"),
         "recent_dashboard_ids": ["dashboard-2", "dashboard-1", "dashboard-3"],
     }
 
     initialize_session_state(session_state)
 
     assert session_state["recent_dashboard_ids"] == ["dashboard-1", "dashboard-3"]
+    assert session_state["dashboards_loaded"] is not None

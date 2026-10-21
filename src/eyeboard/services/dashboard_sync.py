@@ -3,6 +3,7 @@
 import pandas as pd
 from pandas.api.types import is_object_dtype
 
+from eyeboard.dashboards.model import Dashboard, PlotSpec
 from eyeboard.services.columns import resolve_column
 from eyeboard.services.date_parsing import parse_date_series
 
@@ -12,7 +13,7 @@ DATETIME_PARSE_SUCCESS_THRESHOLD = 0.9
 def prepare_dashboard_x_columns(
     dash_filtered: pd.DataFrame,
     selected_dashboard_ids: list[str],
-    dashboards_by_id: dict[str, dict],
+    dashboards_by_id: dict[str, Dashboard],
     available_cols: list[str],
 ) -> pd.DataFrame:
     """Coerce selected dashboard x-columns to datetimes when the signal is strong."""
@@ -22,14 +23,8 @@ def prepare_dashboard_x_columns(
         dashboard = dashboards_by_id.get(dashboard_id)
         if not dashboard:
             continue
-        plots = dashboard.get("plots") or []
-        for plot in plots:
-            if not isinstance(plot, dict):
-                continue
-
-            x_requested = plot.get("x_col")
-            if not isinstance(x_requested, str):
-                continue
+        for plot in dashboard.plots:
+            x_requested = plot.x_col
             matched_x = resolve_column(x_requested, available_cols)
             if matched_x is None or matched_x not in prepared_df.columns:
                 continue
@@ -56,7 +51,7 @@ def prepare_dashboard_x_columns(
 def compute_dashboard_sync_x_range(
     dash_filtered: pd.DataFrame,
     selected_dashboard_ids: list[str],
-    dashboards_by_id: dict[str, dict],
+    dashboards_by_id: dict[str, Dashboard],
     available_cols: list[str],
 ) -> tuple[object, object] | None:
     """Compute a shared x-axis range for dashboard plots when possible."""
@@ -68,14 +63,8 @@ def compute_dashboard_sync_x_range(
         dashboard = dashboards_by_id.get(dashboard_id)
         if not dashboard:
             continue
-        plots = dashboard.get("plots") or []
-        for plot in plots:
-            if not isinstance(plot, dict):
-                continue
-
-            x_requested = plot.get("x_col")
-            if not isinstance(x_requested, str):
-                continue
+        for plot in dashboard.plots:
+            x_requested = plot.x_col
             matched_x = resolve_column(x_requested, available_cols)
             if matched_x is None:
                 continue
@@ -109,7 +98,7 @@ def compute_dashboard_sync_x_range(
 def apply_visible_y_ranges(
     fig,
     df: pd.DataFrame,
-    spec: dict,
+    spec: PlotSpec,
     available_cols: list[str],
     sync_x_range: tuple[object, object] | None,
 ) -> None:
@@ -117,7 +106,7 @@ def apply_visible_y_ranges(
     if sync_x_range is None:
         return
 
-    x_requested = spec.get("x_col")
+    x_requested = spec.x_col
     x_col = resolve_column(x_requested, available_cols) if x_requested else None
     if x_col is None or x_col not in df.columns:
         return
@@ -126,8 +115,8 @@ def apply_visible_y_ranges(
     if visible_df.empty:
         return
 
-    y1_cols = _resolve_series_columns(spec.get("y_cols") or [], available_cols)
-    y2_cols = _resolve_series_columns(spec.get("y2_cols") or [], available_cols)
+    y1_cols = _resolve_series_columns(spec.y_cols, available_cols)
+    y2_cols = _resolve_series_columns(spec.y2_cols, available_cols)
 
     y1_range = _compute_axis_range(visible_df, y1_cols)
     y2_range = _compute_axis_range(visible_df, y2_cols)

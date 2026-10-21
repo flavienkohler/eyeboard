@@ -1,7 +1,8 @@
 """Plot specification builders."""
 
-import uuid
 from typing import Any
+
+from eyeboard.dashboards.model import PlotSpec
 
 
 def build_plot_spec_from_builder(
@@ -18,19 +19,23 @@ def build_plot_spec_from_builder(
     color_col: str | None,
     agg: str | None,
     series_style: dict[str, dict[str, Any]] | None = None,
-) -> dict[str, Any]:
-    """Create a serializable plot specification from builder inputs."""
-    return {
-        "id": str(uuid.uuid4()),
-        "title": title or None,
-        "x_col": x_col,
-        "y_cols": y_cols,
-        "y2_cols": y2_cols if enable_secondary_axis else [],
-        "plot_type": plot_type,
-        "template": theme,  # stored key kept until the schema migration
-        "yaxis_title_1": yaxis_title_1 or None,
-        "yaxis_title_2": yaxis_title_2 or None,
-        "color_col": color_col or None,
-        "agg": agg or None,
-        "series_style": series_style or {},
-    }
+) -> PlotSpec:
+    """Create a validated plot specification from the Plot Builder inputs.
+
+    Raises ``pydantic.ValidationError`` when the inputs do not form a valid plot.
+    """
+    return PlotSpec.model_validate(
+        {
+            "title": title,
+            "x_col": x_col,
+            "y_cols": y_cols,
+            "y2_cols": y2_cols if enable_secondary_axis else [],
+            "plot_type": plot_type,
+            "theme": theme,
+            "yaxis_title_1": yaxis_title_1,
+            "yaxis_title_2": yaxis_title_2,
+            "color_col": color_col,
+            "agg": agg,
+            "series_style": series_style or {},
+        }
+    )

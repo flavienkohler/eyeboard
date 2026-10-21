@@ -6,6 +6,7 @@ __pycache__/
 .DS_Store
 .streamlit/secrets.toml
 saved_configs.json
+saved_configs.json.*
 logs/
 docs/
 data/

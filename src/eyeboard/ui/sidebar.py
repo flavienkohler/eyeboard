@@ -130,15 +130,10 @@ def render_data_section():
         st.markdown("##### Dashboard")
         dashboards = st.session_state["dashboards"]
         if dashboards:
-            name_by_id = {
-                dashboard.get("id"): dashboard.get("name", "Unnamed")
-                for dashboard in dashboards
-            }
-            ordered = sorted(
-                dashboards, key=lambda dashboard: (dashboard.get("name") or "").lower()
-            )
+            name_by_id = {dashboard.id: dashboard.name for dashboard in dashboards}
+            ordered = sorted(dashboards, key=lambda dashboard: dashboard.name.lower())
 
-            options = [None] + [dashboard.get("id") for dashboard in ordered]
+            options = [None] + [dashboard.id for dashboard in ordered]
             selected_index = 0
             if st.session_state["active_dashboard_id"] in options:
                 selected_index = options.index(st.session_state["active_dashboard_id"])

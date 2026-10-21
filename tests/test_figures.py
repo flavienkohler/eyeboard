@@ -1,4 +1,5 @@
 import pandas as pd
+from helpers import make_plot
 
 from eyeboard.plotting.figures import (
     make_column_preview_figure,
@@ -8,7 +9,7 @@ from eyeboard.plotting.figures import (
 
 def test_render_plot_from_spec_returns_warning_for_missing_columns():
     df = pd.DataFrame({"time": [1, 2], "value": [10, 20]})
-    spec = {"x_col": "time", "y_cols": ["missing"], "y2_cols": []}
+    spec = make_plot(x_col="time", y_cols=["missing"])
 
     fig, warnings = render_plot_from_spec(df, spec, list(df.columns))
 
@@ -21,7 +22,7 @@ def test_render_plot_from_spec_returns_warning_for_missing_columns():
 
 def test_render_plot_from_spec_reports_fuzzy_column_matches():
     df = pd.DataFrame({"Time Stamp": [1, 2], "Flow Rate": [10, 20]})
-    spec = {"x_col": "time stamp", "y_cols": ["flow-rate"], "y2_cols": []}
+    spec = make_plot(x_col="time stamp", y_cols=["flow-rate"])
 
     fig, warnings = render_plot_from_spec(df, spec, list(df.columns))
 
@@ -79,7 +80,7 @@ def test_make_column_preview_figure_reuses_sorted_datetime_x_series():
 
 def test_render_plot_from_spec_reports_bad_numeric_cells_and_still_renders():
     df = pd.DataFrame({"t": range(20), "v": ["1.5"] * 19 + ["--"]})
-    spec = {"x_col": "t", "y_cols": ["v"], "y2_cols": []}
+    spec = make_plot(x_col="t", y_cols=["v"])
 
     fig, warnings = render_plot_from_spec(df, spec, list(df.columns))
 
@@ -90,7 +91,7 @@ def test_render_plot_from_spec_reports_bad_numeric_cells_and_still_renders():
 
 def test_render_plot_from_spec_warns_about_a_missing_color_column():
     df = pd.DataFrame({"t": [1, 2], "v": [1.0, 2.0]})
-    spec = {"x_col": "t", "y_cols": ["v"], "y2_cols": [], "color_col": "nope"}
+    spec = make_plot(x_col="t", y_cols=["v"], color_col="nope")
 
     fig, warnings = render_plot_from_spec(df, spec, list(df.columns))
 

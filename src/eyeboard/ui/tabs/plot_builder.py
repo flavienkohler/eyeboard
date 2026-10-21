@@ -1,23 +1,22 @@
 """Plot Builder tab renderer."""
 
 import logging
-import uuid
 from typing import Any
 
 import pandas as pd
 import streamlit as st
+from pydantic import ValidationError
 
 from eyeboard.config import DEFAULT_SERIES_COLORS, PLOT_TYPES, THEMES
+from eyeboard.dashboards.document import describe_validation_error
+from eyeboard.dashboards.model import AGGREGATIONS, DASH_STYLES, Dashboard
 from eyeboard.plotting.figures import render_plot_from_spec
 from eyeboard.plotting.specs import build_plot_spec_from_builder
-from eyeboard.services.clock import utc_now_iso
 from eyeboard.services.columns import normalize_colname
-from eyeboard.services.dashboards import (
-    find_dashboard_by_name,
-    save_dashboards,
-)
+from eyeboard.services.dashboards import find_dashboard_by_name
 from eyeboard.state import remember_recent_dashboard
 from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.persistence import persist_dashboards_with_feedback
 from eyeboard.ui.text import escape_markdown
 
 LOGGER = logging.getLogger(__name__)
@@ -93,7 +92,7 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
         with st.expander("Advanced: aggregation (for categorical X)", expanded=False):
             agg = st.selectbox(
                 "Aggregate Y by X",
-                options=[None, "mean", "sum", "min", "max", "median"],
+                options=[None, *AGGREGATIONS],
                 index=0,
             )
             st.caption(
@@ -174,29 +173,21 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
 
     ordered_dashboards = sorted(
         st.session_state["dashboards"],
-        key=lambda dashboard: (dashboard.get("name") or "").lower(),
+        key=lambda dashboard: dashboard.name.lower(),
     )
-    dashboard_by_id = {
-        dashboard.get("id"): dashboard
-        for dashboard in ordered_dashboards
-        if dashboard.get("id")
-    }
+    dashboard_by_id = {dashboard.id: dashboard for dashboard in ordered_dashboards}
     selected_dashboard_id = st.selectbox(
         "Existing dashboard (optional)",
         options=[""] + list(dashboard_by_id.keys()),
         format_func=lambda value: (
-            "Create new dashboard"
-            if not value
-            else dashboard_by_id.get(value, {}).get("name", "Unnamed")
+            "Create new dashboard" if not value else dashboard_by_id[value].name
         ),
         key="plot_builder_existing_dashboard_id",
     )
     previous_dashboard_id = st.session_state.get("plot_builder_last_dashboard_id")
     if selected_dashboard_id != previous_dashboard_id:
         st.session_state["plot_builder_dashboard_name"] = (
-            dashboard_by_id.get(selected_dashboard_id, {}).get("name", "")
-            if selected_dashboard_id
-            else ""
+            dashboard_by_id[selected_dashboard_id].name if selected_dashboard_id else ""
         )
         st.session_state["plot_builder_last_dashboard_id"] = selected_dashboard_id
 
@@ -218,60 +209,54 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
         disabled=save_disabled,
     ):
         dashboard_name = dash_name.strip()
-        new_plot = build_plot_spec_from_builder(
-            title=plot_label.strip() or (title.strip() or None),
-            x_col=x_col,
-            y_cols=y_cols,
-            plot_type=plot_type,
-            theme=theme,
-            enable_secondary_axis=enable_y2,
-            y2_cols=y2_cols,
-            yaxis_title_1=yaxis_title_1.strip() or None,
-            yaxis_title_2=yaxis_title_2.strip() or None,
-            color_col=color_col,
-            agg=agg,
-            series_style=style_map,
-        )
+        try:
+            new_plot = build_plot_spec_from_builder(
+                title=plot_label.strip() or (title.strip() or None),
+                x_col=x_col,
+                y_cols=y_cols,
+                plot_type=plot_type,
+                theme=theme,
+                enable_secondary_axis=enable_y2,
+                y2_cols=y2_cols,
+                yaxis_title_1=yaxis_title_1.strip() or None,
+                yaxis_title_2=yaxis_title_2.strip() or None,
+                color_col=color_col,
+                agg=agg,
+                series_style=style_map,
+            )
+        except ValidationError as exc:
+            st.error("This plot cannot be saved:")
+            for line in describe_validation_error(exc):
+                st.warning(escape_markdown(line))
+            return
         existing_dashboard = find_dashboard_by_name(
             st.session_state["dashboards"],
             dashboard_name,
         )
         if existing_dashboard is not None:
-            updated_dashboard = dict(existing_dashboard)
-            updated_dashboard["name"] = dashboard_name
-            updated_dashboard["plots"] = [
-                *(existing_dashboard.get("plots") or []),
-                new_plot,
-            ]
+            updated_dashboard = existing_dashboard.model_copy(
+                update={
+                    "name": dashboard_name,
+                    "plots": [*existing_dashboard.plots, new_plot],
+                }
+            )
             new_dashboards = [
                 updated_dashboard
-                if dashboard.get("id") == existing_dashboard.get("id")
+                if dashboard.id == existing_dashboard.id
                 else dashboard
                 for dashboard in st.session_state["dashboards"]
             ]
+            success_message = "Plot added to the selected dashboard."
         else:
-            updated_dashboard = {
-                "id": str(uuid.uuid4()),
-                "name": dashboard_name,
-                "created_at": utc_now_iso(),
-                "plots": [new_plot],
-            }
+            updated_dashboard = Dashboard(name=dashboard_name, plots=[new_plot])
             new_dashboards = [*st.session_state["dashboards"], updated_dashboard]
-        save_error = save_dashboards(new_dashboards)
-        if save_error:
-            st.error(save_error)
-        else:
-            st.session_state["dashboards"] = new_dashboards
-            st.session_state["dashboards_load_error"] = None
-            st.session_state["active_dashboard_id"] = updated_dashboard["id"]
-            st.session_state["plot_builder_pending_dashboard_id"] = updated_dashboard[
-                "id"
-            ]
-            remember_recent_dashboard(st.session_state, updated_dashboard["id"])
-            if existing_dashboard is not None:
-                st.success("Plot added to the selected dashboard.")
-            else:
-                st.success("New dashboard created and selected.")
+            success_message = "New dashboard created and selected."
+        if persist_dashboards_with_feedback(
+            new_dashboards, success_message=success_message
+        ):
+            st.session_state["active_dashboard_id"] = updated_dashboard.id
+            st.session_state["plot_builder_pending_dashboard_id"] = updated_dashboard.id
+            remember_recent_dashboard(st.session_state, updated_dashboard.id)
             st.rerun()
 
 
@@ -284,14 +269,6 @@ def render_series_styling(
         st.markdown("### Plot Builder")
         with st.expander("Series styling (per Y)", expanded=False):
             st.caption("Optional: override each series' line color, width, and style.")
-            dash_options = [
-                "solid",
-                "dash",
-                "dot",
-                "dashdot",
-                "longdash",
-                "longdashdot",
-            ]
             style_map: dict[str, dict[str, Any]] = {}
             series_list = list(dict.fromkeys((y_cols or []) + (y2_cols or [])))
             if not series_list:
@@ -322,7 +299,7 @@ def render_series_styling(
                 with c3:
                     dash = st.selectbox(
                         "Style",
-                        options=dash_options,
+                        options=DASH_STYLES,
                         index=0,
                         key=f"sty_{safe}_dash",
                         label_visibility="collapsed",

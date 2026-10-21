@@ -17,6 +17,27 @@ def test_build_plot_spec_omits_secondary_axis_when_disabled():
         series_style={"q": {"color": "#123456", "width": 2, "dash": "solid"}},
     )
 
-    assert spec["title"] == "Flow"
-    assert spec["y2_cols"] == []
-    assert spec["plot_type"] == "Line"
+    assert spec.title == "Flow"
+    assert spec.y2_cols == []
+    assert spec.plot_type == "Line"
+    assert spec.series_style["q"].color == "#123456"
+
+
+def test_build_plot_spec_rejects_a_plot_without_series():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="at least one Y series"):
+        build_plot_spec_from_builder(
+            title=None,
+            x_col="time",
+            y_cols=[],
+            plot_type="Line",
+            theme="plotly_white",
+            enable_secondary_axis=False,
+            y2_cols=[],
+            yaxis_title_1=None,
+            yaxis_title_2=None,
+            color_col=None,
+            agg=None,
+        )

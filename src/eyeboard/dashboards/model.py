@@ -6,7 +6,7 @@ on the shape instead of checking keys everywhere.
 """
 
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 
 from pydantic import (
     BaseModel,
@@ -23,6 +23,9 @@ from eyeboard.services.clock import utc_now_iso
 PlotType = Literal["Line", "Scatter", "Bar", "Area"]
 Aggregation = Literal["mean", "sum", "min", "max", "median"]
 DashStyle = Literal["solid", "dash", "dot", "dashdot", "longdash", "longdashdot"]
+
+AGGREGATIONS = get_args(Aggregation)
+DASH_STYLES = get_args(DashStyle)
 
 ColumnName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 

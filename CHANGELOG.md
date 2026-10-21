@@ -14,6 +14,8 @@
 - Timestamps are stored in UTC (`...Z`) and shown in local time.
 - Unified the vocabulary: what used to be called template, config or saved config is now always a "dashboard", and the Plotly look is called a "theme" in the code.
 - Added typed dashboard models (pydantic) and a versioned file format with automatic migration from the original list format. Not yet used by the interface.
+- Dashboards, plots and series styles are now typed and validated everywhere (Plot Builder, Dashboards Manager, JSON editor, import, plotting). The saved file uses a versioned format; the original list format is migrated automatically and copied once to `saved_configs.json.v1.bak`. Dashboards that fail validation are reported with the exact problem and backed up instead of being silently dropped.
+- Importing a dashboard that already exists (for example your own export) now creates a copy with a new id.
 
 ## 0.2.0 - 2026-07-01
 

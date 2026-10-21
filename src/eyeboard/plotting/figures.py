@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from eyeboard.dashboards.model import PlotSpec, SeriesStyle
 from eyeboard.plotting.frame import prepare_plot_frame
 from eyeboard.services.columns import resolve_column
 
@@ -31,7 +32,7 @@ def apply_axis_titles(
 
 def apply_series_styles(
     fig: go.Figure,
-    series_style: dict[str, dict[str, Any]],
+    series_style: dict[str, SeriesStyle],
 ) -> None:
     """Apply per-trace styling to a Plotly figure."""
     if not series_style:
@@ -48,16 +49,16 @@ def apply_series_styles(
         if not style:
             continue
 
-        color = style.get("color")
-        width = style.get("width")
-        dash = style.get("dash")
+        color = style.color
+        width = style.width
+        dash = style.dash
 
         if hasattr(trace, "line"):
             line_updates: dict[str, Any] = {}
             if color:
                 line_updates["color"] = color
-            if isinstance(width, (int, float)):
-                line_updates["width"] = float(width)
+            if width is not None:
+                line_updates["width"] = width
             if dash:
                 line_updates["dash"] = dash
             if line_updates:
@@ -73,17 +74,16 @@ def apply_series_styles(
                 LOGGER.warning("Ignoring invalid color %r for series %r.", color, name)
 
 
-def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
+def make_figure(df: pd.DataFrame, spec: PlotSpec) -> go.Figure:
     """Create a Plotly figure based on a plot specification."""
-    x_col = spec.get("x_col")
-    y_cols = spec.get("y_cols") or []
-    y2_cols = spec.get("y2_cols") or []
-    plot_type = spec.get("plot_type", "Line")
-    # The stored key is still "template" (renamed with the versioned schema).
-    theme = spec.get("template", "plotly")
-    title = spec.get("title") or None
-    color_col = spec.get("color_col") or None
-    series_style = spec.get("series_style") or {}
+    x_col = spec.x_col
+    y_cols = spec.y_cols
+    y2_cols = spec.y2_cols
+    plot_type = spec.plot_type
+    theme = spec.theme
+    title = spec.title
+    color_col = spec.color_col
+    series_style = spec.series_style
     plot_df = df
 
     if not y2_cols:
@@ -133,7 +133,7 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
                 template=template_name,
                 title=title,
             )
-        apply_axis_titles(fig, spec.get("yaxis_title_1"), None)
+        apply_axis_titles(fig, spec.yaxis_title_1, None)
         apply_series_styles(fig, series_style)
         fig.update_layout(margin={"l": 10, "r": 10, "t": 50 if title else 20, "b": 10})
         return fig
@@ -145,7 +145,7 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
         fig.update_layout(title=title)
 
     for col in y_cols:
-        style = series_style.get(col, {})
+        style = series_style.get(col) or SeriesStyle()
         if plot_type in ("Line", "Area"):
             fig.add_trace(
                 go.Scatter(
@@ -155,11 +155,9 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
                     name=col,
                     yaxis="y1",
                     line={
-                        "color": style.get("color") or None,
-                        "width": float(style.get("width"))
-                        if isinstance(style.get("width"), (int, float))
-                        else None,
-                        "dash": style.get("dash") or None,
+                        "color": style.color,
+                        "width": style.width,
+                        "dash": style.dash,
                     },
                 )
             )
@@ -171,7 +169,7 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
                     mode="markers",
                     name=col,
                     yaxis="y1",
-                    marker={"color": style.get("color") or None},
+                    marker={"color": style.color},
                 )
             )
         else:
@@ -181,12 +179,12 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
                     y=plot_df[col],
                     name=col,
                     yaxis="y1",
-                    marker={"color": style.get("color") or None},
+                    marker={"color": style.color},
                 )
             )
 
     for col in y2_cols:
-        style = series_style.get(col, {})
+        style = series_style.get(col) or SeriesStyle()
         trace_name = f"{col} (Y2)"
         if plot_type in ("Line", "Area"):
             fig.add_trace(
@@ -197,11 +195,9 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
                     name=trace_name,
                     yaxis="y2",
                     line={
-                        "color": style.get("color") or None,
-                        "width": float(style.get("width"))
-                        if isinstance(style.get("width"), (int, float))
-                        else None,
-                        "dash": style.get("dash") or None,
+                        "color": style.color,
+                        "width": style.width,
+                        "dash": style.dash,
                     },
                 )
             )
@@ -213,7 +209,7 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
                     mode="markers",
                     name=trace_name,
                     yaxis="y2",
-                    marker={"color": style.get("color") or None},
+                    marker={"color": style.color},
                 )
             )
         else:
@@ -223,14 +219,14 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
                     y=plot_df[col],
                     name=trace_name,
                     yaxis="y2",
-                    marker={"color": style.get("color") or None},
+                    marker={"color": style.color},
                 )
             )
 
     fig.update_layout(
-        yaxis={"title": spec.get("yaxis_title_1") or None},
+        yaxis={"title": spec.yaxis_title_1},
         yaxis2={
-            "title": spec.get("yaxis_title_2") or None,
+            "title": spec.yaxis_title_2,
             "overlaying": "y",
             "side": "right",
         },
@@ -248,13 +244,13 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
 
 def render_plot_from_spec(
     df: pd.DataFrame,
-    spec: dict[str, Any],
+    spec: PlotSpec,
     available_cols: list[str],
 ) -> tuple[go.Figure | None, list[str]]:
     """Resolve columns and render a figure for the current dataframe."""
     resolution_warnings: list[str] = []
 
-    x_requested = spec.get("x_col")
+    x_requested = spec.x_col
     x_col = resolve_column(x_requested, available_cols) if x_requested else None
     if not x_col:
         resolution_warnings.append(f"Missing X column: '{x_requested}'")
@@ -263,7 +259,7 @@ def render_plot_from_spec(
         resolution_warnings.append(f"Matched X column '{x_requested}' -> '{x_col}'")
 
     y_cols: list[str] = []
-    for requested_col in spec.get("y_cols") or []:
+    for requested_col in spec.y_cols:
         resolved = resolve_column(requested_col, available_cols)
         if resolved:
             y_cols.append(resolved)
@@ -275,7 +271,7 @@ def render_plot_from_spec(
             resolution_warnings.append(f"Missing Y column: '{requested_col}'")
 
     y2_cols: list[str] = []
-    for requested_col in spec.get("y2_cols") or []:
+    for requested_col in spec.y2_cols:
         resolved = resolve_column(requested_col, available_cols)
         if resolved:
             y2_cols.append(resolved)
@@ -290,22 +286,26 @@ def render_plot_from_spec(
         resolution_warnings.append("No Y columns could be resolved.")
         return None, resolution_warnings
 
-    color_requested = spec.get("color_col")
+    color_requested = spec.color_col
     color_col = (
         resolve_column(color_requested, available_cols) if color_requested else None
     )
     if color_requested and not color_col:
         resolution_warnings.append(f"Missing color column: '{color_requested}'")
 
-    resolved_spec = dict(spec)
-    resolved_spec["x_col"] = x_col
-    resolved_spec["y_cols"] = y_cols
-    resolved_spec["y2_cols"] = y2_cols
-    resolved_spec["color_col"] = color_col
+    # model_copy skips validation on purpose: these are the dataset's column names.
+    resolved_spec = spec.model_copy(
+        update={
+            "x_col": x_col,
+            "y_cols": y_cols,
+            "y2_cols": y2_cols,
+            "color_col": color_col,
+        }
+    )
 
     plot_df, resolved_spec, frame_warnings = prepare_plot_frame(df, resolved_spec)
     resolution_warnings.extend(frame_warnings)
-    if not resolved_spec["y_cols"] and not resolved_spec["y2_cols"]:
+    if not resolved_spec.y_cols and not resolved_spec.y2_cols:
         return None, resolution_warnings
     return make_figure(plot_df, resolved_spec), resolution_warnings
 

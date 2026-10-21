@@ -1,12 +1,11 @@
 import pandas as pd
+from helpers import make_plot
 
 from eyeboard.plotting.frame import prepare_plot_frame
 
 
 def _spec(**overrides):
-    spec = {"x_col": "t", "y_cols": ["v"], "y2_cols": [], "agg": None}
-    spec.update(overrides)
-    return spec
+    return make_plot(**{"x_col": "t", "y_cols": ["v"], **overrides})
 
 
 def test_only_the_columns_of_the_plot_are_kept():
@@ -33,7 +32,7 @@ def test_text_series_are_flagged_but_still_plotted():
 
     plot_df, spec, warnings = prepare_plot_frame(df, _spec())
 
-    assert spec["y_cols"] == ["v"]
+    assert spec.y_cols == ["v"]
     assert plot_df["v"].tolist() == ["a", "b", "c"]
     assert "not numeric" in warnings[0]
 
@@ -72,7 +71,7 @@ def test_aggregation_leaves_out_text_series_and_says_so():
 
     _, spec, warnings = prepare_plot_frame(df, _spec(y_cols=["v", "s"], agg="max"))
 
-    assert spec["y_cols"] == ["v"]
+    assert spec.y_cols == ["v"]
     assert any("cannot be aggregated" in warning for warning in warnings)
 
 
@@ -81,14 +80,5 @@ def test_aggregation_with_no_numeric_series_leaves_nothing_to_plot():
 
     _, spec, warnings = prepare_plot_frame(df, _spec(y_cols=["s"], agg="sum"))
 
-    assert spec["y_cols"] == [] and spec["y2_cols"] == []
+    assert spec.y_cols == [] and spec.y2_cols == []
     assert "No numeric Y column" in warnings[-1]
-
-
-def test_unknown_aggregation_is_reported_and_ignored():
-    df = pd.DataFrame({"t": [1, 1], "v": [1.0, 3.0]})
-
-    plot_df, _, warnings = prepare_plot_frame(df, _spec(agg="mode"))
-
-    assert len(plot_df) == 2
-    assert "Unknown aggregation" in warnings[0]

@@ -1,10 +1,8 @@
-import json
 import re
 
 import pytest
 
 from eyeboard.services.clock import utc_now_iso
-from eyeboard.services.dashboards import save_dashboards
 from eyeboard.services.fileio import backup_file, write_text_atomic
 from eyeboard.services.recent_csvs import (
     format_recent_csv_details,
@@ -30,18 +28,6 @@ def test_write_text_atomic_keeps_the_old_file_when_the_write_fails(tmp_path):
 
     assert target.read_text(encoding="utf-8") == "old"
     assert [p.name for p in tmp_path.iterdir()] == ["file.json"]
-
-
-def test_persist_dashboards_reports_unserialisable_data_and_keeps_the_file(
-    tmp_path,
-):
-    target = tmp_path / "saved.json"
-    target.write_text("[]", encoding="utf-8")
-
-    error = save_dashboards([{"bad": object()}], target)
-
-    assert error is not None and "Could not save" in error
-    assert json.loads(target.read_text(encoding="utf-8")) == []
 
 
 def test_corrupt_recent_index_is_moved_aside_not_overwritten(tmp_path):

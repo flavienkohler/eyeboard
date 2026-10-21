@@ -1,138 +1,116 @@
-"""Template persistence helpers."""
+"""Loading, saving and editing the saved dashboards."""
 
-import json
+import logging
 from pathlib import Path
-from typing import Any
 
 from eyeboard.config import DASHBOARDS_FILE
-from eyeboard.services.fileio import write_text_atomic
+from eyeboard.dashboards.document import (
+    LoadResult,
+    load_document_text,
+    serialize_document,
+)
+from eyeboard.dashboards.model import Dashboard, PlotSpec
+from eyeboard.services.fileio import backup_file, write_text_atomic
+
+LOGGER = logging.getLogger(__name__)
 
 
-def load_dashboards(
-    path: str | Path = DASHBOARDS_FILE,
-) -> tuple[list[dict[str, Any]], str | None]:
-    """Load saved dashboards from disk."""
-    config_path = Path(path)
-    if not config_path.exists():
-        return [], None
+def load_dashboards(path: str | Path = DASHBOARDS_FILE) -> LoadResult:
+    """Read the saved dashboards; a missing file simply means there are none."""
+    file_path = Path(path)
+    if not file_path.exists():
+        return LoadResult()
 
     try:
-        data = json.loads(config_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:  # ValueError covers bad JSON and bad UTF-8
-        return [], f"Could not read saved dashboards from `{config_path}`: {exc}"
+        text = file_path.read_text(encoding="utf-8")
+    except (OSError, ValueError) as exc:  # ValueError covers bad UTF-8
+        result = LoadResult(blocked=True)
+        result.problems.append(f"Could not read `{file_path}`: {exc}")
+        return result
 
-    if isinstance(data, list):
-        return [item for item in data if isinstance(item, dict)], None
-    return [], f"Saved dashboards file `{config_path}` must contain a JSON list."
+    result = load_document_text(text)
+    if result.skipped:
+        result.problems.append(
+            "Entries that could not be loaded stay in the file until the next save; "
+            "a backup copy is then kept next to it (*.unreadable.bak)."
+        )
+    return result
 
 
 def save_dashboards(
-    dashboards: list[dict[str, Any]],
+    dashboards: list[Dashboard],
     path: str | Path = DASHBOARDS_FILE,
+    *,
+    loaded: LoadResult | None = None,
 ) -> str | None:
-    """Save the dashboards to disk."""
-    config_path = Path(path)
+    """Write the dashboards to disk and return an error message, or ``None``.
+
+    ``loaded`` is what was read at startup. It protects data the app could not
+    represent: a file the app does not understand is never overwritten, a file
+    in an older format is copied once to ``*.v1.bak`` before the first write in
+    the new format, and entries that failed validation are copied to
+    ``*.unreadable.bak`` before they disappear from the file.
+    """
+    file_path = Path(path)
+    if loaded is not None and loaded.blocked:
+        return (
+            f"`{file_path}` was not saved because the existing file could not be "
+            "understood; it was left untouched."
+        )
+
     try:
-        write_text_atomic(
-            config_path, json.dumps(dashboards, ensure_ascii=False, indent=2)
-        )
-        return None
+        text = serialize_document(dashboards)
+        if loaded is not None:
+            if loaded.migrated:
+                backup_file(file_path, f"v{loaded.source_version}")
+            if loaded.skipped:
+                backup_file(file_path, "unreadable")
+        write_text_atomic(file_path, text)
     except (OSError, TypeError, ValueError) as exc:
-        return f"Could not save dashboards to `{config_path}`: {exc}"
+        return f"Could not save dashboards to `{file_path}`: {exc}"
 
-
-def validate_dashboard(dashboard: dict[str, Any]) -> list[str]:
-    """Validate the minimal structure required for a saved dashboard."""
-    errors: list[str] = []
-
-    config_name = dashboard.get("name")
-    if config_name is not None and not isinstance(config_name, str):
-        errors.append("`name` must be a string when present.")
-
-    plots = dashboard.get("plots")
-    if not isinstance(plots, list):
-        errors.append("`plots` must be a list.")
-        return errors
-
-    if not plots:
-        errors.append("`plots` is empty.")
-        return errors
-
-    for idx, plot in enumerate(plots, start=1):
-        if not isinstance(plot, dict):
-            errors.append(f"Plot {idx} must be an object.")
-            continue
-
-        x_col = plot.get("x_col")
-        if not isinstance(x_col, str) or not x_col.strip():
-            errors.append(f"Plot {idx} is missing a valid `x_col`.")
-
-        y_cols = plot.get("y_cols")
-        y2_cols = plot.get("y2_cols", [])
-        if not isinstance(y_cols, list):
-            errors.append(f"Plot {idx} has an invalid `y_cols` value.")
-        if not isinstance(y2_cols, list):
-            errors.append(f"Plot {idx} has an invalid `y2_cols` value.")
-
-        valid_y_cols = isinstance(y_cols, list) and any(
-            isinstance(col, str) and col.strip() for col in y_cols
-        )
-        valid_y2_cols = isinstance(y2_cols, list) and any(
-            isinstance(col, str) and col.strip() for col in y2_cols
-        )
-        if not valid_y_cols and not valid_y2_cols:
-            errors.append(f"Plot {idx} must define at least one Y series.")
-
-    return errors
+    if loaded is not None:
+        # The file now holds the current format and no longer holds skipped entries.
+        loaded.source_version = LoadResult().source_version
+        loaded.skipped = []
+    return None
 
 
 def find_dashboard_by_name(
-    dashboards: list[dict[str, Any]],
+    dashboards: list[Dashboard],
     dashboard_name: str,
-) -> dict[str, Any] | None:
+) -> Dashboard | None:
     """Find a saved dashboard by name using a case-insensitive match."""
     normalized_name = dashboard_name.strip().casefold()
     if not normalized_name:
         return None
 
     for dashboard in dashboards:
-        config_name = dashboard.get("name")
-        if (
-            isinstance(config_name, str)
-            and config_name.strip().casefold() == normalized_name
-        ):
+        if dashboard.name.strip().casefold() == normalized_name:
             return dashboard
     return None
 
 
 def update_dashboard_plot(
-    dashboard: dict[str, Any],
+    dashboard: Dashboard,
     plot_id: str,
-    new_plot: dict[str, Any],
-) -> dict[str, Any]:
+    new_plot: PlotSpec,
+) -> Dashboard:
     """Return a dashboard with one plot replaced by id."""
-    updated_dashboard = dict(dashboard)
-    updated_plots: list[dict[str, Any]] = []
-
-    for plot in dashboard.get("plots") or []:
-        if isinstance(plot, dict) and plot.get("id") == plot_id:
-            updated_plots.append(new_plot)
-        else:
-            updated_plots.append(plot)
-
-    updated_dashboard["plots"] = updated_plots
-    return updated_dashboard
+    return dashboard.model_copy(
+        update={
+            "plots": [
+                new_plot if plot.id == plot_id else plot for plot in dashboard.plots
+            ]
+        }
+    )
 
 
-def remove_dashboard_plot(
-    dashboard: dict[str, Any],
-    plot_id: str,
-) -> dict[str, Any]:
-    """Return a dashboard with one plot removed by id."""
-    updated_dashboard = dict(dashboard)
-    updated_dashboard["plots"] = [
-        plot
-        for plot in (dashboard.get("plots") or [])
-        if not (isinstance(plot, dict) and plot.get("id") == plot_id)
-    ]
-    return updated_dashboard
+def remove_dashboard_plot(dashboard: Dashboard, plot_id: str) -> Dashboard:
+    """Return a dashboard with one plot removed by id.
+
+    Callers must keep at least one plot: a dashboard without plots is not valid.
+    """
+    return dashboard.model_copy(
+        update={"plots": [plot for plot in dashboard.plots if plot.id != plot_id]}
+    )

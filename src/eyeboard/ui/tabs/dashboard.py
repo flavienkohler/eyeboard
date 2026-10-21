@@ -6,13 +6,13 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from eyeboard.config import DATE_PARSE_MODES
+from eyeboard.dashboards.model import Dashboard
 from eyeboard.plotting.figures import render_plot_from_spec
 from eyeboard.services.dashboard_sync import (
     apply_visible_y_ranges,
     compute_dashboard_sync_x_range,
     prepare_dashboard_x_columns,
 )
-from eyeboard.services.dashboards import validate_dashboard
 from eyeboard.services.date_parsing import parse_dates_flexible
 from eyeboard.state import remember_recent_dashboard
 from eyeboard.ui.context import MainDatasetContext
@@ -31,11 +31,9 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
         st.info("No saved dashboards yet. Build one in **Plot Builder** and save it.")
         return
 
-    ordered = sorted(
-        dashboards, key=lambda dashboard: (dashboard.get("name") or "").lower()
-    )
-    dashboards_by_id = {dashboard.get("id"): dashboard for dashboard in ordered}
-    dashboard_options = [dashboard.get("id") for dashboard in ordered]
+    ordered = sorted(dashboards, key=lambda dashboard: dashboard.name.lower())
+    dashboards_by_id = {dashboard.id: dashboard for dashboard in ordered}
+    dashboard_options = [dashboard.id for dashboard in ordered]
 
     active_id = st.session_state.get("active_dashboard_id")
     default_selected = (
@@ -45,9 +43,7 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
         "Dashboards to display",
         options=dashboard_options,
         default=default_selected,
-        format_func=lambda value: dashboards_by_id.get(value, {}).get(
-            "name", "Unnamed"
-        ),
+        format_func=lambda value: dashboards_by_id[value].name,
     )
 
     if selected_dashboard_ids:
@@ -88,17 +84,8 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
 
         with st.container(border=True):
             title_col, created_col = st.columns([3, 1], vertical_alignment="bottom")
-            title_col.subheader(escape_markdown(dashboard.get("name", "Unnamed")))
-            created_col.caption(
-                f"Created: {escape_markdown(dashboard.get('created_at', ''))}"
-            )
-
-            config_errors = validate_dashboard(dashboard)
-            if config_errors:
-                st.error("This dashboard could not be read correctly.")
-                for error in config_errors:
-                    st.warning(error)
-                continue
+            title_col.subheader(escape_markdown(dashboard.name))
+            created_col.caption(f"Created: {escape_markdown(dashboard.created_at)}")
 
             dashboard_default_sync_range = (
                 compute_dashboard_sync_x_range(
@@ -233,7 +220,7 @@ def render_dashboard_date_filter(
 
 
 def build_dashboard_figure(
-    dashboard: dict,
+    dashboard: Dashboard,
     dash_plot_df: pd.DataFrame,
     available_cols: list[str],
     *,
@@ -241,14 +228,14 @@ def build_dashboard_figure(
     sync_x_range: tuple[object, object] | None,
 ) -> tuple[go.Figure | None, list[tuple[str, list[str]]]]:
     """Build a native Plotly subplot figure for one saved dashboard."""
-    plots = [plot for plot in (dashboard.get("plots") or []) if isinstance(plot, dict)]
+    plots = dashboard.plots
     if not plots:
         return None, []
 
     subplot_titles = [
-        plot.get("title") or f"Plot {idx}" for idx, plot in enumerate(plots, start=1)
+        plot.title or f"Plot {idx}" for idx, plot in enumerate(plots, start=1)
     ]
-    specs = [[{"secondary_y": bool(plot.get("y2_cols"))}] for plot in plots]
+    specs = [[{"secondary_y": bool(plot.y2_cols)}] for plot in plots]
     combined_fig = make_subplots(
         rows=len(plots),
         cols=1,
@@ -267,7 +254,7 @@ def build_dashboard_figure(
     seen_legend_names: set[str] = set()
 
     for idx, spec in enumerate(plots, start=1):
-        plot_title = spec.get("title") or f"Plot {idx}"
+        plot_title = spec.title or f"Plot {idx}"
         child_fig, warnings = render_plot_from_spec(dash_plot_df, spec, available_cols)
         warnings_by_plot.append((plot_title, warnings))
         if child_fig is None:

@@ -125,11 +125,9 @@ def render_compare_tab(
         st.info("No saved plot dashboards yet. Create one in **Plot Builder** first.")
         return
 
-    cmp_ordered = sorted(
-        cmp_dashboards, key=lambda dashboard: (dashboard.get("name") or "").lower()
-    )
-    cmp_dashboards_by_id = {dashboard.get("id"): dashboard for dashboard in cmp_ordered}
-    cmp_dashboard_options = [dashboard.get("id") for dashboard in cmp_ordered]
+    cmp_ordered = sorted(cmp_dashboards, key=lambda dashboard: dashboard.name.lower())
+    cmp_dashboards_by_id = {dashboard.id: dashboard for dashboard in cmp_ordered}
+    cmp_dashboard_options = [dashboard.id for dashboard in cmp_ordered]
 
     cmp_active_id = st.session_state.get("active_dashboard_id")
     cmp_default = (
@@ -138,12 +136,10 @@ def render_compare_tab(
         else cmp_dashboard_options[:1]
     )
     cmp_selected_dashboard_ids = st.multiselect(
-        "Plot dashboards to compare",
+        "Dashboards to compare",
         options=cmp_dashboard_options,
         default=cmp_default,
-        format_func=lambda value: cmp_dashboards_by_id.get(value, {}).get(
-            "name", "Unnamed"
-        ),
+        format_func=lambda value: cmp_dashboards_by_id[value].name,
         key="cmp_selected_dashboard_ids",
     )
 
@@ -296,19 +292,17 @@ def render_compare_results(
         if not cmp_dashboard:
             continue
 
-        cmp_plots = cmp_dashboard.get("plots") or []
+        cmp_plots = cmp_dashboard.plots
         if not cmp_plots:
             with st.container(border=True):
-                st.markdown(
-                    f"**{escape_markdown(cmp_dashboard.get('name', 'Unnamed'))}**"
-                )
+                st.markdown(f"**{escape_markdown(cmp_dashboard.name)}**")
                 st.warning("This dashboard contains no plots.")
             continue
 
         cmp_spec = cmp_plots[0]
 
         with st.container(border=True):
-            st.markdown(f"**{escape_markdown(cmp_dashboard.get('name', 'Unnamed'))}**")
+            st.markdown(f"**{escape_markdown(cmp_dashboard.name)}**")
             c_a, c_b = st.columns(2, vertical_alignment="top")
 
             with c_a:
@@ -320,7 +314,7 @@ def render_compare_results(
                 )
                 if warns_a:
                     with st.expander(
-                        f"Resolution notes (A) - {cmp_dashboard.get('name', 'Unnamed')}",
+                        f"Resolution notes (A) - {cmp_dashboard.name}",
                         expanded=False,
                     ):
                         for warning in warns_a:
@@ -346,7 +340,7 @@ def render_compare_results(
                 )
                 if warns_b:
                     with st.expander(
-                        f"Resolution notes (B) - {cmp_dashboard.get('name', 'Unnamed')}",
+                        f"Resolution notes (B) - {cmp_dashboard.name}",
                         expanded=False,
                     ):
                         for warning in warns_b:

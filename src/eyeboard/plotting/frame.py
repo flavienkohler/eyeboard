@@ -1,12 +1,10 @@
 """Prepare the data frame behind one plot: pick columns, convert, aggregate."""
 
-from typing import Any
-
 import pandas as pd
 
+from eyeboard.dashboards.model import PlotSpec
 from eyeboard.services.numeric import NumericConversion, coerce_numeric
 
-AGGREGATIONS = ("mean", "sum", "min", "max", "median")
 _DECIMAL_COMMA_HINT = (
     " The values look like decimal commas: set Decimal to Comma in Reading options."
 )
@@ -36,8 +34,8 @@ def _describe_conversion(column: str, info: NumericConversion) -> str | None:
 
 def prepare_plot_frame(
     df: pd.DataFrame,
-    spec: dict[str, Any],
-) -> tuple[pd.DataFrame, dict[str, Any], list[str]]:
+    spec: PlotSpec,
+) -> tuple[pd.DataFrame, PlotSpec, list[str]]:
     """Build the frame a plot needs and return it with the adjusted spec.
 
     Only the columns used by the plot are copied. Series columns are read as
@@ -45,11 +43,11 @@ def prepare_plot_frame(
     spec asks for it. Returns ``(frame, spec, warnings)``; the returned spec
     lists only the series that are still plottable.
     """
-    x_col = spec.get("x_col")
-    y_cols = list(spec.get("y_cols") or [])
-    y2_cols = list(spec.get("y2_cols") or [])
-    color_col = spec.get("color_col") or None
-    agg = spec.get("agg") or None
+    x_col = spec.x_col
+    y_cols = list(spec.y_cols)
+    y2_cols = list(spec.y2_cols)
+    color_col = spec.color_col
+    agg = spec.agg
     series_cols = _unique(y_cols + y2_cols)
     warnings: list[str] = []
 
@@ -63,12 +61,8 @@ def prepare_plot_frame(
         if message:
             warnings.append(message)
 
-    adjusted = dict(spec)
+    adjusted = spec
     if not agg:
-        return plot_df, adjusted, warnings
-
-    if agg not in AGGREGATIONS:
-        warnings.append(f"Unknown aggregation '{agg}'; the data is plotted as is.")
         return plot_df, adjusted, warnings
 
     numeric_cols = [c for c in series_cols if conversions[c].is_numeric]
@@ -77,8 +71,12 @@ def prepare_plot_frame(
             warnings.append(
                 f"Column '{column}' is not numeric and cannot be aggregated; it was left out."
             )
-    adjusted["y_cols"] = [c for c in y_cols if c in numeric_cols]
-    adjusted["y2_cols"] = [c for c in y2_cols if c in numeric_cols]
+    adjusted = spec.model_copy(
+        update={
+            "y_cols": [c for c in y_cols if c in numeric_cols],
+            "y2_cols": [c for c in y2_cols if c in numeric_cols],
+        }
+    )
     if not numeric_cols:
         warnings.append("No numeric Y column is left to aggregate.")
         return plot_df, adjusted, warnings

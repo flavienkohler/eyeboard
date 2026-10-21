@@ -160,3 +160,17 @@ def serialize_document(dashboards: list[Dashboard]) -> str:
         "dashboards": [dashboard.model_dump(mode="json") for dashboard in dashboards],
     }
     return json.dumps(document, ensure_ascii=False, indent=2)
+
+
+def parse_single_dashboard(raw: object) -> tuple[Dashboard | None, list[str]]:
+    """Validate one dashboard coming from an import or from the JSON editor.
+
+    Dashboards exported by earlier versions (``template`` instead of ``theme``)
+    are accepted. Returns ``(dashboard, [])`` or ``(None, problems)``.
+    """
+    if not isinstance(raw, dict):
+        return None, ["The dashboard must be a JSON object."]
+    try:
+        return Dashboard.model_validate(migrate_v1_to_v2([raw])[0]), []
+    except ValidationError as exc:
+        return None, describe_validation_error(exc)

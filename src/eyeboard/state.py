@@ -3,6 +3,7 @@
 from collections.abc import MutableMapping
 from typing import Any
 
+from eyeboard.dashboards.document import LoadResult
 from eyeboard.services.dashboards import load_dashboards
 
 RECENT_DASHBOARD_LIMIT = 8
@@ -11,12 +12,12 @@ RECENT_DASHBOARD_LIMIT = 8
 def initialize_session_state(session_state: MutableMapping[str, Any]) -> None:
     """Ensure all required Streamlit session state keys exist."""
     if "dashboards" not in session_state:
-        dashboards, load_error = load_dashboards()
-        session_state["dashboards"] = dashboards
-        session_state["dashboards_load_error"] = load_error
+        loaded = load_dashboards()
+        session_state["dashboards"] = loaded.dashboards
+        session_state["dashboards_loaded"] = loaded
 
-    if "dashboards_load_error" not in session_state:
-        session_state["dashboards_load_error"] = None
+    if "dashboards_loaded" not in session_state:
+        session_state["dashboards_loaded"] = LoadResult()
 
     if "df" not in session_state:
         session_state["df"] = None
@@ -66,11 +67,7 @@ def remember_recent_dashboard(
     if not dashboard_id:
         return
 
-    available_ids = {
-        dashboard.get("id")
-        for dashboard in session_state.get("dashboards", [])
-        if dashboard.get("id")
-    }
+    available_ids = {dashboard.id for dashboard in session_state.get("dashboards", [])}
     if dashboard_id not in available_ids:
         return
 
@@ -84,11 +81,7 @@ def remember_recent_dashboard(
 
 def prune_recent_dashboard_ids(session_state: MutableMapping[str, Any]) -> None:
     """Drop deleted dashboards from the recent-dashboards list."""
-    available_ids = {
-        dashboard.get("id")
-        for dashboard in session_state.get("dashboards", [])
-        if dashboard.get("id")
-    }
+    available_ids = {dashboard.id for dashboard in session_state.get("dashboards", [])}
     session_state["recent_dashboard_ids"] = [
         dashboard_id
         for dashboard_id in session_state.get("recent_dashboard_ids", [])

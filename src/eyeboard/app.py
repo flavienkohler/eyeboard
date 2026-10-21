@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from eyeboard.config import APP_LAYOUT, APP_PAGE_ICON, APP_PAGE_TITLE
+from eyeboard.dashboards.document import LoadResult
 from eyeboard.services.columns import guess_date_column
 from eyeboard.services.csv_reading import read_csv_input
 from eyeboard.services.date_parsing import parse_dates_flexible
@@ -22,6 +23,7 @@ from eyeboard.ui.tabs.dashboard import render_dashboard_tab
 from eyeboard.ui.tabs.dashboards_manager import render_dashboards_manager_tab
 from eyeboard.ui.tabs.plot_builder import render_plot_builder_tab
 from eyeboard.ui.tabs.preview import render_preview_tab
+from eyeboard.ui.text import escape_markdown
 
 
 def main() -> None:
@@ -35,9 +37,7 @@ def main() -> None:
     initialize_session_state(st.session_state)
     render_header()
 
-    dashboards_load_error = st.session_state.get("dashboards_load_error")
-    if dashboards_load_error:
-        st.error(dashboards_load_error)
+    render_dashboards_load_problems(st.session_state["dashboards_loaded"])
 
     sidebar_selection = render_sidebar()
     csv_path = ""
@@ -118,6 +118,17 @@ def main() -> None:
         render_compare_tab(dataset, sidebar_selection.reading_options)
     with tabs[4]:
         render_dashboards_manager_tab(dataset)
+
+
+def render_dashboards_load_problems(loaded: LoadResult) -> None:
+    """Tell the user about saved dashboards that could not be loaded."""
+    if not loaded.problems:
+        return
+    with st.container(border=True):
+        show = st.error if loaded.blocked else st.warning
+        show("Some saved dashboards could not be loaded.")
+        for problem in loaded.problems:
+            st.caption(escape_markdown(problem))
 
 
 def build_main_dataset_context(df) -> MainDatasetContext:

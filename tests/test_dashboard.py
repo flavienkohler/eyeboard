@@ -1,10 +1,17 @@
 import pandas as pd
+from helpers import make_dashboard, make_plot
 
 from eyeboard.services.dashboard_sync import (
     _compute_axis_range,
     compute_dashboard_sync_x_range,
     prepare_dashboard_x_columns,
 )
+
+
+def _dashboard(dashboard_id, x_col):
+    return make_dashboard(
+        dashboard_id, plots=[make_plot(x_col=x_col, y_cols=["value"])]
+    )
 
 
 def test_compute_dashboard_sync_x_range_for_datetime_series():
@@ -16,12 +23,8 @@ def test_compute_dashboard_sync_x_range_for_datetime_series():
         }
     )
     dashboards_by_id = {
-        "dashboard-a": {
-            "plots": [{"x_col": "time_a", "y_cols": ["value"], "y2_cols": []}]
-        },
-        "dashboard-b": {
-            "plots": [{"x_col": "time_b", "y_cols": ["value"], "y2_cols": []}]
-        },
+        "dashboard-a": _dashboard("dashboard-a", "time_a"),
+        "dashboard-b": _dashboard("dashboard-b", "time_b"),
     }
 
     sync_range = compute_dashboard_sync_x_range(
@@ -46,12 +49,8 @@ def test_compute_dashboard_sync_x_range_returns_none_for_mixed_x_types():
         }
     )
     dashboards_by_id = {
-        "dashboard-a": {
-            "plots": [{"x_col": "time", "y_cols": ["value"], "y2_cols": []}]
-        },
-        "dashboard-b": {
-            "plots": [{"x_col": "step", "y_cols": ["value"], "y2_cols": []}]
-        },
+        "dashboard-a": _dashboard("dashboard-a", "time"),
+        "dashboard-b": _dashboard("dashboard-b", "step"),
     }
 
     sync_range = compute_dashboard_sync_x_range(
@@ -72,9 +71,7 @@ def test_prepare_dashboard_x_columns_parses_datetime_like_text_columns():
         }
     )
     dashboards_by_id = {
-        "dashboard-a": {
-            "plots": [{"x_col": "date", "y_cols": ["value"], "y2_cols": []}]
-        },
+        "dashboard-a": _dashboard("dashboard-a", "date"),
     }
 
     prepared = prepare_dashboard_x_columns(

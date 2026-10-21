@@ -20,6 +20,7 @@
 - Choosing "(none)" as the date column now works; the detected date column is proposed once per loaded file.
 - The Dashboard and Compare tabs no longer have their own date column, order and format controls: they use the date settings of the sidebar, so every tab parses dates the same way (parsing is cached).
 - The application state is now typed (`AppState`): every key the app owns is declared once with its type and default, and a mistyped key is an error instead of a silent new entry.
+- EyeBoard is now an installable package with a command: `uv run eyeboard` (extra options go to Streamlit). The `app/` folder, the `sys.path` tricks and the PowerShell launcher are gone; `run_app.bat` is a short wrapper that checks for `uv`. Supported Python is 3.11 to 3.13, and the minimum versions of the dependencies (Streamlit 1.49, pandas 2.2.2, plotly 5.18, pydantic 2.7) are tested.
 
 ## 0.2.0 - 2026-07-01
 

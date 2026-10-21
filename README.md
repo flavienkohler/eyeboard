@@ -7,26 +7,19 @@ Streamlit app to:
 - re-render saved dashboards on new datasets
 - compare the same dashboards across two CSV files
 
-## Quick Start (Windows)
+## Quick Start
 
-Run:
+You need [uv](https://docs.astral.sh/uv/) (a fast Python package manager). From the project folder:
 
-```bat
-run_app.bat
+```bash
+uv run eyeboard
 ```
 
-The launcher will:
+This installs the dependencies on first use and opens EyeBoard in your browser. Extra options go to Streamlit, for example `uv run eyeboard --server.port 8600`.
 
-1. Detect/install `uv` if needed.
-2. Ensure Python `3.11` is available.
-3. Sync dependencies (`uv sync`).
-4. Start Streamlit and open a browser tab.
+On Windows you can also double-click `run_app.bat`: it checks that `uv` is installed (and offers to install it), then runs the same command.
 
-## Launcher Logging
-
-- Full launcher output is shown in terminal and saved to `logs/run_app_YYYYMMDD_HHMMSS.log`.
-- Only the 5 latest logs are kept (automatic rotation).
-- Logs are ignored by git.
+Supported: Python 3.11 to 3.13.
 
 ## Typical Workflow
 
@@ -100,17 +93,19 @@ These settings affect:
 - Dashboards are stored in `saved_configs.json` locally.
 - `saved_configs.json` is ignored by git (not tracked).
 
-## Manual Run (Any OS with uv installed)
+## Development
 
 ```bash
-uv python install 3.11
-uv sync
-uv run -- streamlit run app/app.py
+uv sync                  # install the app and the dev tools
+uv run pytest            # run the tests
+uv run ruff check .      # lint
+uv run ruff format .     # format
+uv run pre-commit install
 ```
 
 ## Notes
 
-- Commit `uv.lock` for reproducible environments.
+- `uv.lock` pins the exact versions used in development; the declared minimum versions are tested.
 - Streamlit app settings are in `.streamlit/config.toml`.
 
 ## License

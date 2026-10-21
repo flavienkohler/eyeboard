@@ -1,15 +1,15 @@
 @echo off
-setlocal EnableExtensions
-
+setlocal
 cd /d "%~dp0"
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_app.ps1"
-set "RC=%ERRORLEVEL%"
-
-if not "%RC%"=="0" (
-  echo.
-  echo Launcher failed with exit code %RC%.
-  pause
+where uv >nul 2>nul
+if errorlevel 1 (
+  echo EyeBoard needs "uv" ^(a fast Python package manager^), which is not installed.
+  choice /m "Install it now"
+  if errorlevel 2 exit /b 1
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+  set "PATH=%USERPROFILE%\.local\bin;%PATH%"
 )
 
-exit /b %RC%
+uv run eyeboard %*
+if errorlevel 1 pause

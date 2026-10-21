@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
-APP = Path(__file__).resolve().parents[1] / "app" / "app.py"
+APP = Path(__file__).resolve().parents[1] / "src" / "eyeboard" / "streamlit_app.py"
 CSV = "date;flow;temp\n" + "".join(
     f"{day:02d}/03/2020;{day * 0.5:.1f};{day * 0.25:.2f}\n".replace(".", ",")
     for day in range(1, 29)

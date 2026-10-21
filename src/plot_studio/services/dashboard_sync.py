@@ -35,9 +35,9 @@ def prepare_dashboard_x_columns(
                 continue
 
             series = prepared_df[matched_x]
-            if pd.api.types.is_datetime64_any_dtype(series) or pd.api.types.is_numeric_dtype(
+            if pd.api.types.is_datetime64_any_dtype(
                 series
-            ):
+            ) or pd.api.types.is_numeric_dtype(series):
                 continue
             if not is_object_dtype(series):
                 continue

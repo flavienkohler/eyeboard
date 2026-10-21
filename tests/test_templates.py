@@ -6,8 +6,8 @@ from pathlib import Path
 from plot_studio.services.templates import (
     find_saved_config_by_name,
     load_saved_configs_from_disk,
-    remove_dashboard_plot,
     persist_saved_configs_to_disk,
+    remove_dashboard_plot,
     update_dashboard_plot,
     validate_saved_config,
 )

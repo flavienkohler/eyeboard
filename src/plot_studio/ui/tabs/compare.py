@@ -5,7 +5,6 @@ import streamlit as st
 
 from plot_studio.config import DATE_PARSE_MODES
 from plot_studio.plotting.figures import render_plot_from_spec
-from plot_studio.state import remember_recent_config
 from plot_studio.services.columns import guess_date_column, resolve_column
 from plot_studio.services.csv_reading import read_csv_input
 from plot_studio.services.date_parsing import parse_dates_flexible
@@ -14,6 +13,7 @@ from plot_studio.services.recent_csvs import (
     get_recent_csv_cache_path,
     list_recent_csvs,
 )
+from plot_studio.state import remember_recent_config
 from plot_studio.ui.context import MainDatasetContext, ReadingOptions
 
 
@@ -27,10 +27,10 @@ def render_compare_tab(
 
     cmp_left, cmp_right = st.columns(2, vertical_alignment="top")
     recent_csvs = list_recent_csvs(limit=10)
-    recent_options = [None] + [entry.get("id") for entry in recent_csvs if entry.get("id")]
-    recent_by_id = {
-        entry.get("id"): entry for entry in recent_csvs if entry.get("id")
-    }
+    recent_options = [None] + [
+        entry.get("id") for entry in recent_csvs if entry.get("id")
+    ]
+    recent_by_id = {entry.get("id"): entry for entry in recent_csvs if entry.get("id")}
     with cmp_left:
         st.markdown("##### Dataset A")
         cmp_up_a = st.file_uploader("Upload CSV A", type=["csv"], key="cmp_up_a")

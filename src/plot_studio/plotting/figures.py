@@ -398,9 +398,7 @@ def make_column_preview_figure(
                     plot_values = values.dropna()
                     if plot_values.empty:
                         return None
-                    plot_values = _downsample_series(
-                        plot_values, max_points=max_points
-                    )
+                    plot_values = _downsample_series(plot_values, max_points=max_points)
                     plot_df = pd.DataFrame(
                         {"idx": plot_values.index, "value": plot_values.to_numpy()}
                     )

@@ -10,5 +10,4 @@ if str(SRC_DIR) not in sys.path:
 
 from plot_studio.app import main
 
-
 main()

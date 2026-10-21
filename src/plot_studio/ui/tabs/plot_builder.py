@@ -10,10 +10,12 @@ import streamlit as st
 from plot_studio.config import DEFAULT_SERIES_COLORS, PLOT_TYPES, TEMPLATES
 from plot_studio.plotting.figures import render_plot_from_spec
 from plot_studio.plotting.specs import build_plot_spec_from_builder
-from plot_studio.state import remember_recent_config
 from plot_studio.services.columns import normalize_colname
-from plot_studio.services.templates import find_saved_config_by_name
-from plot_studio.services.templates import persist_saved_configs_to_disk
+from plot_studio.services.templates import (
+    find_saved_config_by_name,
+    persist_saved_configs_to_disk,
+)
+from plot_studio.state import remember_recent_config
 from plot_studio.ui.context import MainDatasetContext
 
 

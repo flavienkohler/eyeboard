@@ -9,12 +9,14 @@ import streamlit as st
 from plot_studio.config import PLOT_TYPES, TEMPLATES
 from plot_studio.plotting.figures import render_plot_from_spec
 from plot_studio.plotting.specs import build_plot_spec_from_builder
-from plot_studio.state import prune_recent_config_ids
 from plot_studio.services.columns import normalize_colname
-from plot_studio.services.templates import remove_dashboard_plot
-from plot_studio.services.templates import persist_saved_configs_to_disk
-from plot_studio.services.templates import update_dashboard_plot
-from plot_studio.services.templates import validate_saved_config
+from plot_studio.services.templates import (
+    persist_saved_configs_to_disk,
+    remove_dashboard_plot,
+    update_dashboard_plot,
+    validate_saved_config,
+)
+from plot_studio.state import prune_recent_config_ids
 from plot_studio.ui.context import MainDatasetContext
 
 
@@ -201,9 +203,7 @@ def render_dashboard_plot_editor(
 
     top_left, top_right = st.columns([1.7, 1], vertical_alignment="bottom")
     with top_left:
-        st.caption(
-            f"Editing plot inside dashboard `{sel.get('name', 'Unnamed')}`."
-        )
+        st.caption(f"Editing plot inside dashboard `{sel.get('name', 'Unnamed')}`.")
     with top_right:
         remove_disabled = len(plots) <= 1
         if st.button(
@@ -237,7 +237,9 @@ def render_dashboard_plot_editor(
     x_default = (
         selected_plot.get("x_col")
         if selected_plot.get("x_col") in editable_cols
-        else (dataset.date_col if dataset.date_col in editable_cols else editable_cols[0])
+        else (
+            dataset.date_col if dataset.date_col in editable_cols else editable_cols[0]
+        )
     )
 
     with st.expander("Plot settings", expanded=True):
@@ -324,7 +326,9 @@ def render_dashboard_plot_editor(
             agg = st.selectbox(
                 "Aggregate Y by X",
                 options=agg_options,
-                index=agg_options.index(agg_default) if agg_default in agg_options else 0,
+                index=agg_options.index(agg_default)
+                if agg_default in agg_options
+                else 0,
                 key=f"{plot_form_key}_agg",
             )
 
@@ -418,7 +422,12 @@ def render_plot_style_editor(
 
         for idx, series_name in enumerate(series_list):
             default_style = existing_style_map.get(series_name, {})
-            default_color = default_style.get("color") or ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"][idx % 6]
+            default_color = (
+                default_style.get("color")
+                or ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"][
+                    idx % 6
+                ]
+            )
             default_width = int(default_style.get("width") or 2)
             default_dash = default_style.get("dash") or "solid"
             safe = normalize_colname(series_name).replace(" ", "_") or "series"

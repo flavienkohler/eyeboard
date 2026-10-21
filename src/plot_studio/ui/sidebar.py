@@ -4,12 +4,12 @@ import pandas as pd
 import streamlit as st
 
 from plot_studio.config import DATE_PARSE_MODES
+from plot_studio.services.columns import guess_date_column
 from plot_studio.services.recent_csvs import (
     format_recent_csv_details,
     list_recent_csvs,
     touch_recent_csv,
 )
-from plot_studio.services.columns import guess_date_column
 from plot_studio.ui.context import ReadingOptions, SidebarSelection
 
 
@@ -103,9 +103,7 @@ def render_data_section():
                     ):
                         selected_recent_csv_id = selected_older_recent
                         touch_recent_csv(selected_older_recent)
-                        st.session_state["active_recent_csv_id"] = (
-                            selected_older_recent
-                        )
+                        st.session_state["active_recent_csv_id"] = selected_older_recent
                         st.session_state["active_csv_source"] = "recent"
                         st.rerun()
 

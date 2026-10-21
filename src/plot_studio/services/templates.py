@@ -98,7 +98,10 @@ def find_saved_config_by_name(
 
     for config in saved_configs:
         config_name = config.get("name")
-        if isinstance(config_name, str) and config_name.strip().casefold() == normalized_name:
+        if (
+            isinstance(config_name, str)
+            and config_name.strip().casefold() == normalized_name
+        ):
             return config
     return None
 

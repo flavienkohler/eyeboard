@@ -7,14 +7,14 @@ from plotly.subplots import make_subplots
 
 from plot_studio.config import DATE_PARSE_MODES
 from plot_studio.plotting.figures import render_plot_from_spec
-from plot_studio.state import remember_recent_config
-from plot_studio.services.date_parsing import parse_dates_flexible
 from plot_studio.services.dashboard_sync import (
     apply_visible_y_ranges,
     compute_dashboard_sync_x_range,
     prepare_dashboard_x_columns,
 )
+from plot_studio.services.date_parsing import parse_dates_flexible
 from plot_studio.services.templates import validate_saved_config
+from plot_studio.state import remember_recent_config
 from plot_studio.ui.context import MainDatasetContext
 
 
@@ -97,7 +97,6 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
                     st.warning(error)
                 continue
 
-            plots = cfg.get("plots") or []
             dashboard_default_sync_range = (
                 compute_dashboard_sync_x_range(
                     dash_plot_df,

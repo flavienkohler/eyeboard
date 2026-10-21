@@ -101,7 +101,9 @@ def list_recent_csvs(
     valid_entries: list[dict[str, Any]] = []
     changed = False
 
-    for entry in sorted(entries, key=lambda item: item.get("opened_at", ""), reverse=True):
+    for entry in sorted(
+        entries, key=lambda item: item.get("opened_at", ""), reverse=True
+    ):
         cache_filename = entry.get("cache_filename")
         if not cache_filename:
             changed = True
@@ -172,14 +174,14 @@ def touch_recent_csv(
 ) -> dict[str, Any] | None:
     """Move an existing recent CSV entry to the top after reopening it."""
     entries = load_recent_csv_index(index_path)
-    matching_entry = next((entry for entry in entries if entry.get("id") == entry_id), None)
+    matching_entry = next(
+        (entry for entry in entries if entry.get("id") == entry_id), None
+    )
     if matching_entry is None:
         return None
 
     updated_entry = dict(matching_entry)
     updated_entry["opened_at"] = datetime.now().isoformat(timespec="seconds")
-    remaining_entries = [
-        entry for entry in entries if entry.get("id") != entry_id
-    ]
+    remaining_entries = [entry for entry in entries if entry.get("id") != entry_id]
     save_recent_csv_index([updated_entry, *remaining_entries][:max_items], index_path)
     return updated_entry

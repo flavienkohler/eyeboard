@@ -10,8 +10,8 @@ from plot_studio.plotting.figures import (
     make_column_preview_figure,
 )
 from plot_studio.services.columns import normalize_colname
-from plot_studio.ui.header import render_read_report
 from plot_studio.ui.context import MainDatasetContext
+from plot_studio.ui.header import render_read_report
 
 MINI_PLOT_AUTO_RENDER_MAX_ROWS = 5_000
 MINI_PLOT_AUTO_RENDER_MAX_COLUMNS = 24
@@ -126,9 +126,7 @@ def render_preview_tab(dataset: MainDatasetContext) -> None:
 
         normalized_filter = normalize_colname(filter_text)
         filtered_cols = [
-            col
-            for col in mini_plot_cols
-            if normalized_filter in normalize_colname(col)
+            col for col in mini_plot_cols if normalized_filter in normalize_colname(col)
         ]
         if not filtered_cols:
             st.info("No preview columns match the current filter.")

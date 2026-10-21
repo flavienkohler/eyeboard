@@ -12,9 +12,9 @@ from plot_studio.services.dashboard_sync import (
     compute_dashboard_sync_x_range,
     prepare_dashboard_x_columns,
 )
+from plot_studio.services.dashboards import validate_dashboard
 from plot_studio.services.date_parsing import parse_dates_flexible
-from plot_studio.services.templates import validate_saved_config
-from plot_studio.state import remember_recent_config
+from plot_studio.state import remember_recent_dashboard
 from plot_studio.ui.context import MainDatasetContext
 from plot_studio.ui.text import escape_markdown
 
@@ -26,29 +26,35 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
         "Select one or more saved dashboards. Each dashboard renders its saved plots on the current dataset."
     )
 
-    configs = st.session_state["saved_configs"]
-    if not configs:
+    dashboards = st.session_state["dashboards"]
+    if not dashboards:
         st.info("No saved dashboards yet. Build one in **Plot Builder** and save it.")
         return
 
-    ordered = sorted(configs, key=lambda cfg: (cfg.get("name") or "").lower())
-    id_to_cfg = {cfg.get("id"): cfg for cfg in ordered}
-    cfg_options = [cfg.get("id") for cfg in ordered]
+    ordered = sorted(
+        dashboards, key=lambda dashboard: (dashboard.get("name") or "").lower()
+    )
+    dashboards_by_id = {dashboard.get("id"): dashboard for dashboard in ordered}
+    dashboard_options = [dashboard.get("id") for dashboard in ordered]
 
     active_id = st.session_state.get("active_dashboard_id")
-    default_selected = [active_id] if active_id in cfg_options else cfg_options[:1]
-    selected_cfg_ids = st.multiselect(
+    default_selected = (
+        [active_id] if active_id in dashboard_options else dashboard_options[:1]
+    )
+    selected_dashboard_ids = st.multiselect(
         "Dashboards to display",
-        options=cfg_options,
+        options=dashboard_options,
         default=default_selected,
-        format_func=lambda value: id_to_cfg.get(value, {}).get("name", "Unnamed"),
+        format_func=lambda value: dashboards_by_id.get(value, {}).get(
+            "name", "Unnamed"
+        ),
     )
 
-    if selected_cfg_ids:
-        st.session_state["active_dashboard_id"] = selected_cfg_ids[0]
-        remember_recent_config(st.session_state, selected_cfg_ids[0])
+    if selected_dashboard_ids:
+        st.session_state["active_dashboard_id"] = selected_dashboard_ids[0]
+        remember_recent_dashboard(st.session_state, selected_dashboard_ids[0])
 
-    if not selected_cfg_ids:
+    if not selected_dashboard_ids:
         st.info("Select at least one dashboard.")
         return
 
@@ -59,35 +65,35 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
     available_cols = list(dash_filtered.columns)
     dash_plot_df = prepare_dashboard_x_columns(
         dash_filtered,
-        selected_cfg_ids,
-        id_to_cfg,
+        selected_dashboard_ids,
+        dashboards_by_id,
         available_cols,
     )
     available_cols = list(dash_plot_df.columns)
     shared_sync_default_range = (
         compute_dashboard_sync_x_range(
             dash_plot_df,
-            selected_cfg_ids,
-            id_to_cfg,
+            selected_dashboard_ids,
+            dashboards_by_id,
             available_cols,
         )
         if sync_x_axis
         else None
     )
 
-    for cfg_id in selected_cfg_ids:
-        cfg = id_to_cfg.get(cfg_id)
-        if not cfg:
+    for dashboard_id in selected_dashboard_ids:
+        dashboard = dashboards_by_id.get(dashboard_id)
+        if not dashboard:
             continue
 
         with st.container(border=True):
             title_col, created_col = st.columns([3, 1], vertical_alignment="bottom")
-            title_col.subheader(escape_markdown(cfg.get("name", "Unnamed")))
+            title_col.subheader(escape_markdown(dashboard.get("name", "Unnamed")))
             created_col.caption(
-                f"Created: {escape_markdown(cfg.get('created_at', ''))}"
+                f"Created: {escape_markdown(dashboard.get('created_at', ''))}"
             )
 
-            config_errors = validate_saved_config(cfg)
+            config_errors = validate_dashboard(dashboard)
             if config_errors:
                 st.error("This dashboard could not be read correctly.")
                 for error in config_errors:
@@ -97,8 +103,8 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
             dashboard_default_sync_range = (
                 compute_dashboard_sync_x_range(
                     dash_plot_df,
-                    [cfg_id],
-                    id_to_cfg,
+                    [dashboard_id],
+                    dashboards_by_id,
                     available_cols,
                 )
                 if sync_x_axis
@@ -113,7 +119,7 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
                 )
 
             combined_fig, warnings_by_plot = build_dashboard_figure(
-                cfg,
+                dashboard,
                 dash_plot_df,
                 available_cols,
                 sync_x_axis=sync_x_axis,
@@ -142,7 +148,7 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
                 st.plotly_chart(
                     combined_fig,
                     width="stretch",
-                    key=f"dash_plot_{cfg_id}",
+                    key=f"dash_plot_{dashboard_id}",
                 )
 
 
@@ -227,7 +233,7 @@ def render_dashboard_date_filter(
 
 
 def build_dashboard_figure(
-    cfg: dict,
+    dashboard: dict,
     dash_plot_df: pd.DataFrame,
     available_cols: list[str],
     *,
@@ -235,7 +241,7 @@ def build_dashboard_figure(
     sync_x_range: tuple[object, object] | None,
 ) -> tuple[go.Figure | None, list[tuple[str, list[str]]]]:
     """Build a native Plotly subplot figure for one saved dashboard."""
-    plots = [plot for plot in (cfg.get("plots") or []) if isinstance(plot, dict)]
+    plots = [plot for plot in (dashboard.get("plots") or []) if isinstance(plot, dict)]
     if not plots:
         return None, []
 

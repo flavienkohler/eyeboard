@@ -4,14 +4,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from plot_studio.config import SAVED_CONFIGS_FILE
+from plot_studio.config import DASHBOARDS_FILE
 from plot_studio.services.fileio import write_text_atomic
 
 
-def load_saved_configs_from_disk(
-    path: str | Path = SAVED_CONFIGS_FILE,
+def load_dashboards(
+    path: str | Path = DASHBOARDS_FILE,
 ) -> tuple[list[dict[str, Any]], str | None]:
-    """Load saved plot templates from disk."""
+    """Load saved dashboards from disk."""
     config_path = Path(path)
     if not config_path.exists():
         return [], None
@@ -19,37 +19,37 @@ def load_saved_configs_from_disk(
     try:
         data = json.loads(config_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:  # ValueError covers bad JSON and bad UTF-8
-        return [], f"Could not read saved templates from `{config_path}`: {exc}"
+        return [], f"Could not read saved dashboards from `{config_path}`: {exc}"
 
     if isinstance(data, list):
         return [item for item in data if isinstance(item, dict)], None
-    return [], f"Saved templates file `{config_path}` must contain a JSON list."
+    return [], f"Saved dashboards file `{config_path}` must contain a JSON list."
 
 
-def persist_saved_configs_to_disk(
-    saved_configs: list[dict[str, Any]],
-    path: str | Path = SAVED_CONFIGS_FILE,
+def save_dashboards(
+    dashboards: list[dict[str, Any]],
+    path: str | Path = DASHBOARDS_FILE,
 ) -> str | None:
-    """Persist saved plot templates to disk."""
+    """Save the dashboards to disk."""
     config_path = Path(path)
     try:
         write_text_atomic(
-            config_path, json.dumps(saved_configs, ensure_ascii=False, indent=2)
+            config_path, json.dumps(dashboards, ensure_ascii=False, indent=2)
         )
         return None
     except (OSError, TypeError, ValueError) as exc:
-        return f"Could not save templates to `{config_path}`: {exc}"
+        return f"Could not save dashboards to `{config_path}`: {exc}"
 
 
-def validate_saved_config(config: dict[str, Any]) -> list[str]:
-    """Validate the minimal structure required for a saved config/template."""
+def validate_dashboard(dashboard: dict[str, Any]) -> list[str]:
+    """Validate the minimal structure required for a saved dashboard."""
     errors: list[str] = []
 
-    config_name = config.get("name")
+    config_name = dashboard.get("name")
     if config_name is not None and not isinstance(config_name, str):
         errors.append("`name` must be a string when present.")
 
-    plots = config.get("plots")
+    plots = dashboard.get("plots")
     if not isinstance(plots, list):
         errors.append("`plots` must be a list.")
         return errors
@@ -86,8 +86,8 @@ def validate_saved_config(config: dict[str, Any]) -> list[str]:
     return errors
 
 
-def find_saved_config_by_name(
-    saved_configs: list[dict[str, Any]],
+def find_dashboard_by_name(
+    dashboards: list[dict[str, Any]],
     dashboard_name: str,
 ) -> dict[str, Any] | None:
     """Find a saved dashboard by name using a case-insensitive match."""
@@ -95,13 +95,13 @@ def find_saved_config_by_name(
     if not normalized_name:
         return None
 
-    for config in saved_configs:
-        config_name = config.get("name")
+    for dashboard in dashboards:
+        config_name = dashboard.get("name")
         if (
             isinstance(config_name, str)
             and config_name.strip().casefold() == normalized_name
         ):
-            return config
+            return dashboard
     return None
 
 

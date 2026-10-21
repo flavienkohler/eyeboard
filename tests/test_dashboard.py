@@ -15,15 +15,19 @@ def test_compute_dashboard_sync_x_range_for_datetime_series():
             "value": [1, 2],
         }
     )
-    id_to_cfg = {
-        "cfg-a": {"plots": [{"x_col": "time_a", "y_cols": ["value"], "y2_cols": []}]},
-        "cfg-b": {"plots": [{"x_col": "time_b", "y_cols": ["value"], "y2_cols": []}]},
+    dashboards_by_id = {
+        "dashboard-a": {
+            "plots": [{"x_col": "time_a", "y_cols": ["value"], "y2_cols": []}]
+        },
+        "dashboard-b": {
+            "plots": [{"x_col": "time_b", "y_cols": ["value"], "y2_cols": []}]
+        },
     }
 
     sync_range = compute_dashboard_sync_x_range(
         df,
-        ["cfg-a", "cfg-b"],
-        id_to_cfg,
+        ["dashboard-a", "dashboard-b"],
+        dashboards_by_id,
         list(df.columns),
     )
 
@@ -41,15 +45,19 @@ def test_compute_dashboard_sync_x_range_returns_none_for_mixed_x_types():
             "value": [3, 4],
         }
     )
-    id_to_cfg = {
-        "cfg-a": {"plots": [{"x_col": "time", "y_cols": ["value"], "y2_cols": []}]},
-        "cfg-b": {"plots": [{"x_col": "step", "y_cols": ["value"], "y2_cols": []}]},
+    dashboards_by_id = {
+        "dashboard-a": {
+            "plots": [{"x_col": "time", "y_cols": ["value"], "y2_cols": []}]
+        },
+        "dashboard-b": {
+            "plots": [{"x_col": "step", "y_cols": ["value"], "y2_cols": []}]
+        },
     }
 
     sync_range = compute_dashboard_sync_x_range(
         df,
-        ["cfg-a", "cfg-b"],
-        id_to_cfg,
+        ["dashboard-a", "dashboard-b"],
+        dashboards_by_id,
         list(df.columns),
     )
 
@@ -63,14 +71,16 @@ def test_prepare_dashboard_x_columns_parses_datetime_like_text_columns():
             "value": [1, 2],
         }
     )
-    id_to_cfg = {
-        "cfg-a": {"plots": [{"x_col": "date", "y_cols": ["value"], "y2_cols": []}]},
+    dashboards_by_id = {
+        "dashboard-a": {
+            "plots": [{"x_col": "date", "y_cols": ["value"], "y2_cols": []}]
+        },
     }
 
     prepared = prepare_dashboard_x_columns(
         df,
-        ["cfg-a"],
-        id_to_cfg,
+        ["dashboard-a"],
+        dashboards_by_id,
         list(df.columns),
     )
 

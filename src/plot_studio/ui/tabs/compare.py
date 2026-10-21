@@ -13,7 +13,7 @@ from plot_studio.services.recent_csvs import (
     get_recent_csv_cache_path,
     list_recent_csvs,
 )
-from plot_studio.state import remember_recent_config
+from plot_studio.state import remember_recent_dashboard
 from plot_studio.ui.context import MainDatasetContext, ReadingOptions
 from plot_studio.ui.text import escape_markdown
 
@@ -24,7 +24,7 @@ def render_compare_tab(
 ) -> None:
     """Render the compare-two-datasets tab."""
     st.markdown("#### Compare (2 CSVs)")
-    st.caption("Load two CSVs and compare selected saved plot configs side by side.")
+    st.caption("Load two CSVs and compare selected saved plot dashboards side by side.")
 
     cmp_left, cmp_right = st.columns(2, vertical_alignment="top")
     recent_csvs = list_recent_csvs(limit=10)
@@ -120,39 +120,45 @@ def render_compare_tab(
         f"B: `{cmp_label_b or 'CSV B'}` ({len(cmp_df_b):,} rows)"
     )
 
-    cmp_configs = st.session_state["saved_configs"]
-    if not cmp_configs:
-        st.info("No saved plot configs yet. Create one in **Plot Builder** first.")
+    cmp_dashboards = st.session_state["dashboards"]
+    if not cmp_dashboards:
+        st.info("No saved plot dashboards yet. Create one in **Plot Builder** first.")
         return
 
-    cmp_ordered = sorted(cmp_configs, key=lambda cfg: (cfg.get("name") or "").lower())
-    cmp_id_to_cfg = {cfg.get("id"): cfg for cfg in cmp_ordered}
-    cmp_cfg_options = [cfg.get("id") for cfg in cmp_ordered]
+    cmp_ordered = sorted(
+        cmp_dashboards, key=lambda dashboard: (dashboard.get("name") or "").lower()
+    )
+    cmp_dashboards_by_id = {dashboard.get("id"): dashboard for dashboard in cmp_ordered}
+    cmp_dashboard_options = [dashboard.get("id") for dashboard in cmp_ordered]
 
     cmp_active_id = st.session_state.get("active_dashboard_id")
     cmp_default = (
-        [cmp_active_id] if cmp_active_id in cmp_cfg_options else cmp_cfg_options[:1]
+        [cmp_active_id]
+        if cmp_active_id in cmp_dashboard_options
+        else cmp_dashboard_options[:1]
     )
-    cmp_selected_cfg_ids = st.multiselect(
-        "Plot configs to compare",
-        options=cmp_cfg_options,
+    cmp_selected_dashboard_ids = st.multiselect(
+        "Plot dashboards to compare",
+        options=cmp_dashboard_options,
         default=cmp_default,
-        format_func=lambda value: cmp_id_to_cfg.get(value, {}).get("name", "Unnamed"),
-        key="cmp_selected_cfg_ids",
+        format_func=lambda value: cmp_dashboards_by_id.get(value, {}).get(
+            "name", "Unnamed"
+        ),
+        key="cmp_selected_dashboard_ids",
     )
 
-    if cmp_selected_cfg_ids:
-        st.session_state["active_dashboard_id"] = cmp_selected_cfg_ids[0]
-        remember_recent_config(st.session_state, cmp_selected_cfg_ids[0])
+    if cmp_selected_dashboard_ids:
+        st.session_state["active_dashboard_id"] = cmp_selected_dashboard_ids[0]
+        remember_recent_dashboard(st.session_state, cmp_selected_dashboard_ids[0])
 
-    if not cmp_selected_cfg_ids:
-        st.info("Select at least one plot config to compare.")
+    if not cmp_selected_dashboard_ids:
+        st.info("Select at least one dashboard to compare.")
         return
 
     compare_state = render_compare_options(dataset, cmp_df_a, cmp_df_b)
     render_compare_results(
-        cmp_selected_cfg_ids,
-        cmp_id_to_cfg,
+        cmp_selected_dashboard_ids,
+        cmp_dashboards_by_id,
         cmp_label_a,
         cmp_label_b,
         compare_state,
@@ -278,29 +284,31 @@ def render_compare_options(
 
 
 def render_compare_results(
-    cmp_selected_cfg_ids: list[str],
-    cmp_id_to_cfg: dict[str, dict],
+    cmp_selected_dashboard_ids: list[str],
+    cmp_dashboards_by_id: dict[str, dict],
     cmp_label_a: str,
     cmp_label_b: str,
     compare_state: dict[str, object],
 ) -> None:
-    """Render side-by-side comparison charts for the selected configs."""
-    for cmp_cfg_id in cmp_selected_cfg_ids:
-        cmp_cfg = cmp_id_to_cfg.get(cmp_cfg_id)
-        if not cmp_cfg:
+    """Render side-by-side comparison charts for the selected dashboards."""
+    for cmp_dashboard_id in cmp_selected_dashboard_ids:
+        cmp_dashboard = cmp_dashboards_by_id.get(cmp_dashboard_id)
+        if not cmp_dashboard:
             continue
 
-        cmp_plots = cmp_cfg.get("plots") or []
+        cmp_plots = cmp_dashboard.get("plots") or []
         if not cmp_plots:
             with st.container(border=True):
-                st.markdown(f"**{escape_markdown(cmp_cfg.get('name', 'Unnamed'))}**")
-                st.warning("This config contains no plots.")
+                st.markdown(
+                    f"**{escape_markdown(cmp_dashboard.get('name', 'Unnamed'))}**"
+                )
+                st.warning("This dashboard contains no plots.")
             continue
 
         cmp_spec = cmp_plots[0]
 
         with st.container(border=True):
-            st.markdown(f"**{escape_markdown(cmp_cfg.get('name', 'Unnamed'))}**")
+            st.markdown(f"**{escape_markdown(cmp_dashboard.get('name', 'Unnamed'))}**")
             c_a, c_b = st.columns(2, vertical_alignment="top")
 
             with c_a:
@@ -312,7 +320,7 @@ def render_compare_results(
                 )
                 if warns_a:
                     with st.expander(
-                        f"Resolution notes (A) - {cmp_cfg.get('name', 'Unnamed')}",
+                        f"Resolution notes (A) - {cmp_dashboard.get('name', 'Unnamed')}",
                         expanded=False,
                     ):
                         for warning in warns_a:
@@ -324,10 +332,10 @@ def render_compare_results(
                     st.plotly_chart(
                         fig_a,
                         width="stretch",
-                        key=f"cmp_plot_a_{cmp_cfg_id}",
+                        key=f"cmp_plot_a_{cmp_dashboard_id}",
                     )
                 else:
-                    st.error("Could not render this config for Dataset A.")
+                    st.error("Could not render this dashboard for Dataset A.")
 
             with c_b:
                 st.caption(f"B - {escape_markdown(cmp_label_b or 'CSV B')}")
@@ -338,7 +346,7 @@ def render_compare_results(
                 )
                 if warns_b:
                     with st.expander(
-                        f"Resolution notes (B) - {cmp_cfg.get('name', 'Unnamed')}",
+                        f"Resolution notes (B) - {cmp_dashboard.get('name', 'Unnamed')}",
                         expanded=False,
                     ):
                         for warning in warns_b:
@@ -350,7 +358,7 @@ def render_compare_results(
                     st.plotly_chart(
                         fig_b,
                         width="stretch",
-                        key=f"cmp_plot_b_{cmp_cfg_id}",
+                        key=f"cmp_plot_b_{cmp_dashboard_id}",
                     )
                 else:
-                    st.error("Could not render this config for Dataset B.")
+                    st.error("Could not render this dashboard for Dataset B.")

@@ -4,12 +4,12 @@ import re
 import pytest
 
 from plot_studio.services.clock import utc_now_iso
+from plot_studio.services.dashboards import save_dashboards
 from plot_studio.services.fileio import write_text_atomic
 from plot_studio.services.recent_csvs import (
     format_recent_csv_details,
     load_recent_csv_index,
 )
-from plot_studio.services.templates import persist_saved_configs_to_disk
 
 
 def test_write_text_atomic_creates_folders_and_writes_text(tmp_path):
@@ -32,13 +32,13 @@ def test_write_text_atomic_keeps_the_old_file_when_the_write_fails(tmp_path):
     assert [p.name for p in tmp_path.iterdir()] == ["file.json"]
 
 
-def test_persist_saved_configs_reports_unserialisable_data_and_keeps_the_file(
+def test_persist_dashboards_reports_unserialisable_data_and_keeps_the_file(
     tmp_path,
 ):
     target = tmp_path / "saved.json"
     target.write_text("[]", encoding="utf-8")
 
-    error = persist_saved_configs_to_disk([{"bad": object()}], target)
+    error = save_dashboards([{"bad": object()}], target)
 
     assert error is not None and "Could not save" in error
     assert json.loads(target.read_text(encoding="utf-8")) == []

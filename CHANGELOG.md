@@ -12,6 +12,7 @@
 - Error handling is narrower and logged: unexpected failures are no longer swallowed, a corrupt recent-files index is moved aside instead of overwritten, and invalid series colors are reported in the log.
 - `saved_configs.json` and the recent-files index are written atomically, so a crash can no longer leave a half-written file.
 - Timestamps are stored in UTC (`...Z`) and shown in local time.
+- Unified the vocabulary: what used to be called template, config or saved config is now always a "dashboard", and the Plotly look is called a "theme" in the code.
 
 ## 0.2.0 - 2026-07-01
 

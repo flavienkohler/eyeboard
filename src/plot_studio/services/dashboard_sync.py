@@ -11,18 +11,18 @@ DATETIME_PARSE_SUCCESS_THRESHOLD = 0.9
 
 def prepare_dashboard_x_columns(
     dash_filtered: pd.DataFrame,
-    selected_cfg_ids: list[str],
-    id_to_cfg: dict[str, dict],
+    selected_dashboard_ids: list[str],
+    dashboards_by_id: dict[str, dict],
     available_cols: list[str],
 ) -> pd.DataFrame:
     """Coerce selected dashboard x-columns to datetimes when the signal is strong."""
     prepared_df = dash_filtered.copy()
 
-    for cfg_id in selected_cfg_ids:
-        cfg = id_to_cfg.get(cfg_id)
-        if not cfg:
+    for dashboard_id in selected_dashboard_ids:
+        dashboard = dashboards_by_id.get(dashboard_id)
+        if not dashboard:
             continue
-        plots = cfg.get("plots") or []
+        plots = dashboard.get("plots") or []
         for plot in plots:
             if not isinstance(plot, dict):
                 continue
@@ -55,8 +55,8 @@ def prepare_dashboard_x_columns(
 
 def compute_dashboard_sync_x_range(
     dash_filtered: pd.DataFrame,
-    selected_cfg_ids: list[str],
-    id_to_cfg: dict[str, dict],
+    selected_dashboard_ids: list[str],
+    dashboards_by_id: dict[str, dict],
     available_cols: list[str],
 ) -> tuple[object, object] | None:
     """Compute a shared x-axis range for dashboard plots when possible."""
@@ -64,11 +64,11 @@ def compute_dashboard_sync_x_range(
     max_x: object | None = None
     detected_kind: str | None = None
 
-    for cfg_id in selected_cfg_ids:
-        cfg = id_to_cfg.get(cfg_id)
-        if not cfg:
+    for dashboard_id in selected_dashboard_ids:
+        dashboard = dashboards_by_id.get(dashboard_id)
+        if not dashboard:
             continue
-        plots = cfg.get("plots") or []
+        plots = dashboard.get("plots") or []
         for plot in plots:
             if not isinstance(plot, dict):
                 continue

@@ -3,9 +3,9 @@
 Streamlit app to:
 
 - load CSV data with flexible parsing
-- build reusable plot configurations
-- render dashboards from saved configs on new datasets
-- compare the same plot configs across two CSV files
+- build plots and save them into reusable dashboards
+- re-render saved dashboards on new datasets
+- compare the same dashboards across two CSV files
 
 ## Quick Start (Windows)
 
@@ -33,16 +33,16 @@ The launcher will:
 1. Load a CSV in the sidebar (`Data` section).
 2. Adjust parsing in `Reading options` (separator, decimal, header, date parsing).
 3. Build a plot in `Plot Builder`.
-4. Save it as a template/config.
-5. Go to `Dashboard` and select one or more saved configs to visualize on the current CSV.
-6. Go to `Compare (2 CSVs)` to visualize the same config(s) side-by-side on two datasets.
+4. Save it into a dashboard.
+5. Go to `Dashboard` and select one or more saved dashboards to visualize on the current CSV.
+6. Go to `Compare (2 CSVs)` to visualize the same dashboard(s) side-by-side on two datasets.
 
 ## Sidebar Controls
 
 ### Data
 
 - Upload CSV or provide a server path.
-- Select the active saved template/config.
+- Select the active dashboard.
 
 ### Reading Options
 
@@ -75,29 +75,29 @@ These settings affect:
 - Choose date range and X/Y axes
 - Configure plot type, optional secondary Y axis, group/color, aggregation
 - Per-series style controls (color/width/dash)
-- Save the current plot as a reusable template/config
+- Save the current plot into a dashboard
 
 ### Dashboard
 
-- Select one or more saved configs to display on current CSV
+- Select one or more saved dashboards to display on current CSV
 - Optional global date parsing/filtering in this tab
-- One rendered plot per selected config
+- One rendered figure per selected dashboard
 
 ### Compare (2 CSVs)
 
 - Load Dataset A and Dataset B
-- Select saved config(s) to compare
+- Select dashboard(s) to compare
 - Shared optional date parsing and shared date-range filter
-- Side-by-side plot rendering (A vs B) per config
+- Side-by-side plot rendering (A vs B) per dashboard
 
-### Templates
+### Dashboards Manager
 
-- Rename, delete, export/import template JSON
+- Rename, delete, export/import dashboard JSON
 - Advanced JSON edit/validate/save
 
-## Config File
+## Saved dashboards
 
-- Saved configs are stored in `saved_configs.json` locally.
+- Dashboards are stored in `saved_configs.json` locally.
 - `saved_configs.json` is ignored by git (not tracked).
 
 ## Manual Run (Any OS with uv installed)

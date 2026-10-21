@@ -21,13 +21,13 @@ ENCODING_OPTIONS = {
 }
 DATE_KEYWORDS = ("date", "time", "datum", "zeit", "datetime")
 DATE_PARSE_MODES = ["Auto-detect", "Day-first", "Month-first"]
-SAVED_CONFIGS_FILE = "saved_configs.json"
+DASHBOARDS_FILE = "saved_configs.json"
 RECENT_CSV_CACHE_DIR = Path("data/.recent_csvs")
 RECENT_CSV_INDEX_FILE = RECENT_CSV_CACHE_DIR / "index.json"
 RECENT_CSV_LIMIT = 10
 
 PLOT_TYPES = ["Line", "Scatter", "Bar", "Area"]
-TEMPLATES = [
+THEMES = [
     "plotly",
     "plotly_white",
     "plotly_dark",

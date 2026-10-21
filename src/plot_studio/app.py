@@ -19,9 +19,9 @@ from plot_studio.ui.header import render_dataset_summary, render_header
 from plot_studio.ui.sidebar import render_sidebar
 from plot_studio.ui.tabs.compare import render_compare_tab
 from plot_studio.ui.tabs.dashboard import render_dashboard_tab
+from plot_studio.ui.tabs.dashboards_manager import render_dashboards_manager_tab
 from plot_studio.ui.tabs.plot_builder import render_plot_builder_tab
 from plot_studio.ui.tabs.preview import render_preview_tab
-from plot_studio.ui.tabs.templates import render_templates_tab
 
 
 def main() -> None:
@@ -35,9 +35,9 @@ def main() -> None:
     initialize_session_state(st.session_state)
     render_header()
 
-    saved_configs_load_error = st.session_state.get("saved_configs_load_error")
-    if saved_configs_load_error:
-        st.error(saved_configs_load_error)
+    dashboards_load_error = st.session_state.get("dashboards_load_error")
+    if dashboards_load_error:
+        st.error(dashboards_load_error)
 
     sidebar_selection = render_sidebar()
     csv_path = ""
@@ -117,7 +117,7 @@ def main() -> None:
     with tabs[3]:
         render_compare_tab(dataset, sidebar_selection.reading_options)
     with tabs[4]:
-        render_templates_tab(dataset)
+        render_dashboards_manager_tab(dataset)
 
 
 def build_main_dataset_context(df) -> MainDatasetContext:

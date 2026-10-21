@@ -7,16 +7,16 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from plot_studio.config import DEFAULT_SERIES_COLORS, PLOT_TYPES, TEMPLATES
+from plot_studio.config import DEFAULT_SERIES_COLORS, PLOT_TYPES, THEMES
 from plot_studio.plotting.figures import render_plot_from_spec
 from plot_studio.plotting.specs import build_plot_spec_from_builder
 from plot_studio.services.clock import utc_now_iso
 from plot_studio.services.columns import normalize_colname
-from plot_studio.services.templates import (
-    find_saved_config_by_name,
-    persist_saved_configs_to_disk,
+from plot_studio.services.dashboards import (
+    find_dashboard_by_name,
+    save_dashboards,
 )
-from plot_studio.state import remember_recent_config
+from plot_studio.state import remember_recent_dashboard
 from plot_studio.ui.context import MainDatasetContext
 from plot_studio.ui.text import escape_markdown
 
@@ -103,10 +103,10 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
     style_map = render_series_styling(y_cols, y2_cols)
 
     with st.expander("2) Styling", expanded=False):
-        template = st.selectbox(
+        theme = st.selectbox(
             "Theme",
-            options=TEMPLATES,
-            index=TEMPLATES.index("plotly_white"),
+            options=THEMES,
+            index=THEMES.index("plotly_white"),
         )
         title = st.text_input("Plot title (optional)", value="")
         yaxis_title_1 = st.text_input("Y1 axis title (optional)", value="")
@@ -131,7 +131,7 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
                 x_col=x_col,
                 y_cols=y_cols,
                 plot_type=plot_type,
-                template=template,
+                theme=theme,
                 enable_secondary_axis=enable_y2,
                 y2_cols=y2_cols,
                 yaxis_title_1=yaxis_title_1.strip() or None,
@@ -173,11 +173,13 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
         st.session_state["plot_builder_last_dashboard_id"] = pending_dashboard_id
 
     ordered_dashboards = sorted(
-        st.session_state["saved_configs"],
-        key=lambda cfg: (cfg.get("name") or "").lower(),
+        st.session_state["dashboards"],
+        key=lambda dashboard: (dashboard.get("name") or "").lower(),
     )
     dashboard_by_id = {
-        cfg.get("id"): cfg for cfg in ordered_dashboards if cfg.get("id")
+        dashboard.get("id"): dashboard
+        for dashboard in ordered_dashboards
+        if dashboard.get("id")
     }
     selected_dashboard_id = st.selectbox(
         "Existing dashboard (optional)",
@@ -221,7 +223,7 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
             x_col=x_col,
             y_cols=y_cols,
             plot_type=plot_type,
-            template=template,
+            theme=theme,
             enable_secondary_axis=enable_y2,
             y2_cols=y2_cols,
             yaxis_title_1=yaxis_title_1.strip() or None,
@@ -230,8 +232,8 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
             agg=agg,
             series_style=style_map,
         )
-        existing_dashboard = find_saved_config_by_name(
-            st.session_state["saved_configs"],
+        existing_dashboard = find_dashboard_by_name(
+            st.session_state["dashboards"],
             dashboard_name,
         )
         if existing_dashboard is not None:
@@ -241,11 +243,11 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
                 *(existing_dashboard.get("plots") or []),
                 new_plot,
             ]
-            new_saved_configs = [
+            new_dashboards = [
                 updated_dashboard
-                if cfg.get("id") == existing_dashboard.get("id")
-                else cfg
-                for cfg in st.session_state["saved_configs"]
+                if dashboard.get("id") == existing_dashboard.get("id")
+                else dashboard
+                for dashboard in st.session_state["dashboards"]
             ]
         else:
             updated_dashboard = {
@@ -254,18 +256,18 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
                 "created_at": utc_now_iso(),
                 "plots": [new_plot],
             }
-            new_saved_configs = [*st.session_state["saved_configs"], updated_dashboard]
-        save_error = persist_saved_configs_to_disk(new_saved_configs)
+            new_dashboards = [*st.session_state["dashboards"], updated_dashboard]
+        save_error = save_dashboards(new_dashboards)
         if save_error:
             st.error(save_error)
         else:
-            st.session_state["saved_configs"] = new_saved_configs
-            st.session_state["saved_configs_load_error"] = None
+            st.session_state["dashboards"] = new_dashboards
+            st.session_state["dashboards_load_error"] = None
             st.session_state["active_dashboard_id"] = updated_dashboard["id"]
             st.session_state["plot_builder_pending_dashboard_id"] = updated_dashboard[
                 "id"
             ]
-            remember_recent_config(st.session_state, updated_dashboard["id"])
+            remember_recent_dashboard(st.session_state, updated_dashboard["id"])
             if existing_dashboard is not None:
                 st.success("Plot added to the selected dashboard.")
             else:

@@ -5,61 +5,63 @@ import uuid
 
 import streamlit as st
 
-from plot_studio.config import PLOT_TYPES, TEMPLATES
+from plot_studio.config import PLOT_TYPES, THEMES
 from plot_studio.plotting.figures import render_plot_from_spec
 from plot_studio.plotting.specs import build_plot_spec_from_builder
 from plot_studio.services.clock import utc_now_iso
 from plot_studio.services.columns import normalize_colname
-from plot_studio.services.templates import (
-    persist_saved_configs_to_disk,
+from plot_studio.services.dashboards import (
     remove_dashboard_plot,
+    save_dashboards,
     update_dashboard_plot,
-    validate_saved_config,
+    validate_dashboard,
 )
-from plot_studio.state import prune_recent_config_ids
+from plot_studio.state import prune_recent_dashboard_ids
 from plot_studio.ui.context import MainDatasetContext
 from plot_studio.ui.text import escape_markdown
 
 
 def _persist_configs_with_feedback(
-    new_configs: list[dict],
+    new_dashboards: list[dict],
     *,
     success_message: str,
 ) -> bool:
     """Persist dashboards and show success/error feedback."""
-    save_error = persist_saved_configs_to_disk(new_configs)
+    save_error = save_dashboards(new_dashboards)
     if save_error:
         st.error(save_error)
         return False
 
-    st.session_state["saved_configs"] = new_configs
-    st.session_state["saved_configs_load_error"] = None
-    prune_recent_config_ids(st.session_state)
+    st.session_state["dashboards"] = new_dashboards
+    st.session_state["dashboards_load_error"] = None
+    prune_recent_dashboard_ids(st.session_state)
     st.success(success_message)
     return True
 
 
-def render_templates_tab(dataset: MainDatasetContext) -> None:
+def render_dashboards_manager_tab(dataset: MainDatasetContext) -> None:
     """Render dashboard management UI."""
     st.markdown("#### Dashboards Manager")
     st.caption(
         "Manage dashboards, edit or remove individual plots, export/import, and edit JSON."
     )
 
-    configs = st.session_state["saved_configs"]
-    if not configs:
+    dashboards = st.session_state["dashboards"]
+    if not dashboards:
         st.info("No dashboards saved yet.")
         return
 
-    ordered = sorted(configs, key=lambda cfg: (cfg.get("name") or "").lower())
-    id_to_cfg = {cfg.get("id"): cfg for cfg in ordered}
+    ordered = sorted(
+        dashboards, key=lambda dashboard: (dashboard.get("name") or "").lower()
+    )
+    dashboards_by_id = {dashboard.get("id"): dashboard for dashboard in ordered}
     sel_id = st.selectbox(
         "Select dashboard",
-        options=[cfg.get("id") for cfg in ordered],
-        format_func=lambda value: id_to_cfg[value].get("name", "Unnamed"),
+        options=[dashboard.get("id") for dashboard in ordered],
+        format_func=lambda value: dashboards_by_id[value].get("name", "Unnamed"),
     )
-    sel = id_to_cfg.get(sel_id)
-    selected_config_errors = validate_saved_config(sel)
+    sel = dashboards_by_id.get(sel_id)
+    selected_config_errors = validate_dashboard(sel)
     if selected_config_errors:
         st.error("This dashboard could not be read correctly.")
         for error in selected_config_errors:
@@ -69,12 +71,13 @@ def render_templates_tab(dataset: MainDatasetContext) -> None:
     with c1:
         new_name = st.text_input("Rename", value=sel.get("name", ""))
         if st.button("Apply rename", width="stretch"):
-            renamed_config = dict(sel)
-            renamed_config["name"] = new_name.strip() or sel.get("name", "")
-            new_configs = [
-                renamed_config if cfg.get("id") == sel_id else cfg for cfg in configs
+            renamed_dashboard = dict(sel)
+            renamed_dashboard["name"] = new_name.strip() or sel.get("name", "")
+            new_dashboards = [
+                renamed_dashboard if dashboard.get("id") == sel_id else dashboard
+                for dashboard in dashboards
             ]
-            _persist_configs_with_feedback(new_configs, success_message="Renamed.")
+            _persist_configs_with_feedback(new_dashboards, success_message="Renamed.")
     with c2:
         st.download_button(
             "Export selected (JSON)",
@@ -87,14 +90,18 @@ def render_templates_tab(dataset: MainDatasetContext) -> None:
         )
     with c3:
         if st.button("Delete selected", type="secondary", width="stretch"):
-            new_configs = [cfg for cfg in configs if cfg.get("id") != sel_id]
-            if _persist_configs_with_feedback(new_configs, success_message="Deleted."):
+            new_dashboards = [
+                dashboard for dashboard in dashboards if dashboard.get("id") != sel_id
+            ]
+            if _persist_configs_with_feedback(
+                new_dashboards, success_message="Deleted."
+            ):
                 if st.session_state.get("active_dashboard_id") == sel_id:
                     st.session_state["active_dashboard_id"] = None
                 st.rerun()
 
     st.divider()
-    render_dashboard_plot_editor(sel, configs, dataset)
+    render_dashboard_plot_editor(sel, dashboards, dataset)
 
     st.divider()
 
@@ -123,17 +130,18 @@ def render_templates_tab(dataset: MainDatasetContext) -> None:
                     st.error("Dashboard JSON must be an object.")
                     return
                 new_obj.setdefault("id", sel_id)
-                validation_errors = validate_saved_config(new_obj)
+                validation_errors = validate_dashboard(new_obj)
                 if validation_errors:
                     st.error("Dashboard JSON is structurally invalid.")
                     for error in validation_errors:
                         st.warning(error)
                     return
-                new_configs = [
-                    new_obj if cfg.get("id") == sel_id else cfg for cfg in configs
+                new_dashboards = [
+                    new_obj if dashboard.get("id") == sel_id else dashboard
+                    for dashboard in dashboards
                 ]
                 if _persist_configs_with_feedback(
-                    new_configs,
+                    new_dashboards,
                     success_message="Dashboard updated.",
                 ):
                     st.rerun()
@@ -157,15 +165,15 @@ def render_templates_tab(dataset: MainDatasetContext) -> None:
             imported.setdefault("id", str(uuid.uuid4()))
             imported.setdefault("created_at", utc_now_iso())
             imported.setdefault("plots", [])
-            validation_errors = validate_saved_config(imported)
+            validation_errors = validate_dashboard(imported)
             if validation_errors:
                 st.error("Imported dashboard could not be read correctly.")
                 for error in validation_errors:
                     st.warning(error)
                 return
-            new_configs = [*st.session_state["saved_configs"], imported]
+            new_dashboards = [*st.session_state["dashboards"], imported]
             if _persist_configs_with_feedback(
-                new_configs,
+                new_dashboards,
                 success_message="Imported dashboard.",
             ):
                 st.session_state["last_imported_json_signature"] = upload_signature
@@ -174,7 +182,7 @@ def render_templates_tab(dataset: MainDatasetContext) -> None:
 
 def render_dashboard_plot_editor(
     sel: dict,
-    configs: list[dict],
+    dashboards: list[dict],
     dataset: MainDatasetContext,
 ) -> None:
     """Render plot-level edit and removal controls for one dashboard."""
@@ -210,12 +218,12 @@ def render_dashboard_plot_editor(
             disabled=remove_disabled,
         ):
             updated_dashboard = remove_dashboard_plot(sel, selected_plot_id)
-            new_configs = [
-                updated_dashboard if cfg.get("id") == sel.get("id") else cfg
-                for cfg in configs
+            new_dashboards = [
+                updated_dashboard if dashboard.get("id") == sel.get("id") else dashboard
+                for dashboard in dashboards
             ]
             if _persist_configs_with_feedback(
-                new_configs,
+                new_dashboards,
                 success_message="Plot removed from dashboard.",
             ):
                 st.rerun()
@@ -286,12 +294,12 @@ def render_dashboard_plot_editor(
             )
         with right:
             theme_value = selected_plot.get("template", "plotly_white")
-            if theme_value not in TEMPLATES:
+            if theme_value not in THEMES:
                 theme_value = "plotly_white"
             theme = st.selectbox(
                 "Theme",
-                options=TEMPLATES,
-                index=TEMPLATES.index(theme_value),
+                options=THEMES,
+                index=THEMES.index(theme_value),
                 key=f"{plot_form_key}_theme",
             )
             yaxis_title_1 = st.text_input(
@@ -340,7 +348,7 @@ def render_dashboard_plot_editor(
         x_col=x_col,
         y_cols=y_cols,
         plot_type=plot_type,
-        template=theme,
+        theme=theme,
         enable_secondary_axis=enable_y2,
         y2_cols=y2_cols,
         yaxis_title_1=yaxis_title_1.strip() or None,
@@ -374,19 +382,19 @@ def render_dashboard_plot_editor(
 
     if st.button("Save plot changes", width="stretch"):
         updated_dashboard = update_dashboard_plot(sel, selected_plot_id, preview_spec)
-        validation_errors = validate_saved_config(updated_dashboard)
+        validation_errors = validate_dashboard(updated_dashboard)
         if validation_errors:
             st.error("The updated dashboard is structurally invalid.")
             for error in validation_errors:
                 st.warning(error)
             return
 
-        new_configs = [
-            updated_dashboard if cfg.get("id") == sel.get("id") else cfg
-            for cfg in configs
+        new_dashboards = [
+            updated_dashboard if dashboard.get("id") == sel.get("id") else dashboard
+            for dashboard in dashboards
         ]
         if _persist_configs_with_feedback(
-            new_configs,
+            new_dashboards,
             success_message="Plot updated in dashboard.",
         ):
             st.rerun()

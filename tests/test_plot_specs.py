@@ -7,7 +7,7 @@ def test_build_plot_spec_omits_secondary_axis_when_disabled():
         x_col="time",
         y_cols=["q"],
         plot_type="Line",
-        template="plotly_white",
+        theme="plotly_white",
         enable_secondary_axis=False,
         y2_cols=["temp"],
         yaxis_title_1="Flow",

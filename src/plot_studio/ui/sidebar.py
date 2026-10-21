@@ -128,12 +128,17 @@ def render_data_section():
             st.session_state["active_recent_csv_id"] = None
 
         st.markdown("##### Dashboard")
-        configs = st.session_state["saved_configs"]
-        if configs:
-            name_by_id = {cfg.get("id"): cfg.get("name", "Unnamed") for cfg in configs}
-            ordered = sorted(configs, key=lambda cfg: (cfg.get("name") or "").lower())
+        dashboards = st.session_state["dashboards"]
+        if dashboards:
+            name_by_id = {
+                dashboard.get("id"): dashboard.get("name", "Unnamed")
+                for dashboard in dashboards
+            }
+            ordered = sorted(
+                dashboards, key=lambda dashboard: (dashboard.get("name") or "").lower()
+            )
 
-            options = [None] + [cfg.get("id") for cfg in ordered]
+            options = [None] + [dashboard.get("id") for dashboard in ordered]
             selected_index = 0
             if st.session_state["active_dashboard_id"] in options:
                 selected_index = options.index(st.session_state["active_dashboard_id"])

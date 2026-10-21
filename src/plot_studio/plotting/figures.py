@@ -79,14 +79,15 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
     y_cols = spec.get("y_cols") or []
     y2_cols = spec.get("y2_cols") or []
     plot_type = spec.get("plot_type", "Line")
-    template = spec.get("template", "plotly")
+    # The stored key is still "template" (renamed with the versioned schema).
+    theme = spec.get("template", "plotly")
     title = spec.get("title") or None
     color_col = spec.get("color_col") or None
     series_style = spec.get("series_style") or {}
     plot_df = df
 
     if not y2_cols:
-        template_name = template if template != "none" else None
+        template_name = theme if theme != "none" else None
         if plot_type == "Line":
             fig = px.line(
                 plot_df,
@@ -138,8 +139,8 @@ def make_figure(df: pd.DataFrame, spec: dict[str, Any]) -> go.Figure:
         return fig
 
     fig = go.Figure()
-    if template != "none":
-        fig.update_layout(template=template)
+    if theme != "none":
+        fig.update_layout(template=theme)
     if title:
         fig.update_layout(title=title)
 

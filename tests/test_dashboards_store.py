@@ -3,7 +3,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from plot_studio.services.dashboards import (
+from eyeboard.services.dashboards import (
     find_dashboard_by_name,
     load_dashboards,
     remove_dashboard_plot,

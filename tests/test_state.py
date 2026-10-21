@@ -1,4 +1,4 @@
-from plot_studio.state import initialize_session_state, remember_recent_dashboard
+from eyeboard.state import initialize_session_state, remember_recent_dashboard
 
 
 def test_remember_recent_dashboard_keeps_most_recent_first():

@@ -1,6 +1,6 @@
 import pytest
 
-from plot_studio.ui.text import escape_markdown
+from eyeboard.ui.text import escape_markdown
 
 
 @pytest.mark.parametrize(

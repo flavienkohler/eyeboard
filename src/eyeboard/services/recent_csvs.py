@@ -8,13 +8,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from plot_studio.config import (
+from eyeboard.config import (
     RECENT_CSV_CACHE_DIR,
     RECENT_CSV_INDEX_FILE,
     RECENT_CSV_LIMIT,
 )
-from plot_studio.services.clock import utc_now_iso
-from plot_studio.services.fileio import write_text_atomic
+from eyeboard.services.clock import utc_now_iso
+from eyeboard.services.fileio import write_text_atomic
 
 LOGGER = logging.getLogger(__name__)
 

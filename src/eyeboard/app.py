@@ -3,25 +3,25 @@
 import pandas as pd
 import streamlit as st
 
-from plot_studio.config import APP_LAYOUT, APP_PAGE_ICON, APP_PAGE_TITLE
-from plot_studio.services.columns import guess_date_column
-from plot_studio.services.csv_reading import read_csv_input
-from plot_studio.services.date_parsing import parse_dates_flexible
-from plot_studio.services.recent_csvs import (
+from eyeboard.config import APP_LAYOUT, APP_PAGE_ICON, APP_PAGE_TITLE
+from eyeboard.services.columns import guess_date_column
+from eyeboard.services.csv_reading import read_csv_input
+from eyeboard.services.date_parsing import parse_dates_flexible
+from eyeboard.services.recent_csvs import (
     get_recent_csv_cache_path,
     get_recent_csv_entry,
     remember_recent_csv,
     touch_recent_csv,
 )
-from plot_studio.state import initialize_session_state
-from plot_studio.ui.context import MainDatasetContext
-from plot_studio.ui.header import render_dataset_summary, render_header
-from plot_studio.ui.sidebar import render_sidebar
-from plot_studio.ui.tabs.compare import render_compare_tab
-from plot_studio.ui.tabs.dashboard import render_dashboard_tab
-from plot_studio.ui.tabs.dashboards_manager import render_dashboards_manager_tab
-from plot_studio.ui.tabs.plot_builder import render_plot_builder_tab
-from plot_studio.ui.tabs.preview import render_preview_tab
+from eyeboard.state import initialize_session_state
+from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.header import render_dataset_summary, render_header
+from eyeboard.ui.sidebar import render_sidebar
+from eyeboard.ui.tabs.compare import render_compare_tab
+from eyeboard.ui.tabs.dashboard import render_dashboard_tab
+from eyeboard.ui.tabs.dashboards_manager import render_dashboards_manager_tab
+from eyeboard.ui.tabs.plot_builder import render_plot_builder_tab
+from eyeboard.ui.tabs.preview import render_preview_tab
 
 
 def main() -> None:

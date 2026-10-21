@@ -5,14 +5,14 @@ import math
 import pandas as pd
 import streamlit as st
 
-from plot_studio.plotting.figures import (
+from eyeboard.plotting.figures import (
     COLUMN_PREVIEW_MAX_POINTS,
     make_column_preview_figure,
 )
-from plot_studio.services.columns import normalize_colname
-from plot_studio.ui.context import MainDatasetContext
-from plot_studio.ui.header import render_read_report
-from plot_studio.ui.text import escape_markdown
+from eyeboard.services.columns import normalize_colname
+from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.header import render_read_report
+from eyeboard.ui.text import escape_markdown
 
 MINI_PLOT_AUTO_RENDER_MAX_ROWS = 5_000
 MINI_PLOT_AUTO_RENDER_MAX_COLUMNS = 24

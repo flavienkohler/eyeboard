@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from plot_studio.config import DASHBOARDS_FILE
-from plot_studio.services.fileio import write_text_atomic
+from eyeboard.config import DASHBOARDS_FILE
+from eyeboard.services.fileio import write_text_atomic
 
 
 def load_dashboards(

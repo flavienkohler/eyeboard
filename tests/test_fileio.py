@@ -3,10 +3,10 @@ import re
 
 import pytest
 
-from plot_studio.services.clock import utc_now_iso
-from plot_studio.services.dashboards import save_dashboards
-from plot_studio.services.fileio import write_text_atomic
-from plot_studio.services.recent_csvs import (
+from eyeboard.services.clock import utc_now_iso
+from eyeboard.services.dashboards import save_dashboards
+from eyeboard.services.fileio import write_text_atomic
+from eyeboard.services.recent_csvs import (
     format_recent_csv_details,
     load_recent_csv_index,
 )

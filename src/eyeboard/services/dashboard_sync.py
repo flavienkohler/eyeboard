@@ -3,8 +3,8 @@
 import pandas as pd
 from pandas.api.types import is_object_dtype
 
-from plot_studio.services.columns import resolve_column
-from plot_studio.services.date_parsing import parse_date_series
+from eyeboard.services.columns import resolve_column
+from eyeboard.services.date_parsing import parse_date_series
 
 DATETIME_PARSE_SUCCESS_THRESHOLD = 0.9
 

@@ -2,9 +2,9 @@
 
 import streamlit as st
 
-from plot_studio.config import APP_HEADER_SUBTITLE, APP_HEADER_TITLE
-from plot_studio.ui.context import MainDatasetContext
-from plot_studio.ui.text import escape_markdown
+from eyeboard.config import APP_HEADER_SUBTITLE, APP_HEADER_TITLE
+from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.text import escape_markdown
 
 
 def render_header() -> None:

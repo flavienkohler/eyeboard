@@ -2,7 +2,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from plot_studio.services.recent_csvs import (
+from eyeboard.services.recent_csvs import (
     get_recent_csv_cache_path,
     list_recent_csvs,
     remember_recent_csv,

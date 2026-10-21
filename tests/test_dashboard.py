@@ -1,6 +1,6 @@
 import pandas as pd
 
-from plot_studio.services.dashboard_sync import (
+from eyeboard.services.dashboard_sync import (
     _compute_axis_range,
     compute_dashboard_sync_x_range,
     prepare_dashboard_x_columns,

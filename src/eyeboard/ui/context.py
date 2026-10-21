@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from plot_studio.models import CsvReadReport
+from eyeboard.models import CsvReadReport
 
 
 @dataclass(slots=True)

@@ -3,19 +3,19 @@
 import pandas as pd
 import streamlit as st
 
-from plot_studio.config import DATE_PARSE_MODES
-from plot_studio.plotting.figures import render_plot_from_spec
-from plot_studio.services.columns import guess_date_column, resolve_column
-from plot_studio.services.csv_reading import read_csv_input
-from plot_studio.services.date_parsing import parse_dates_flexible
-from plot_studio.services.recent_csvs import (
+from eyeboard.config import DATE_PARSE_MODES
+from eyeboard.plotting.figures import render_plot_from_spec
+from eyeboard.services.columns import guess_date_column, resolve_column
+from eyeboard.services.csv_reading import read_csv_input
+from eyeboard.services.date_parsing import parse_dates_flexible
+from eyeboard.services.recent_csvs import (
     format_recent_csv_details,
     get_recent_csv_cache_path,
     list_recent_csvs,
 )
-from plot_studio.state import remember_recent_dashboard
-from plot_studio.ui.context import MainDatasetContext, ReadingOptions
-from plot_studio.ui.text import escape_markdown
+from eyeboard.state import remember_recent_dashboard
+from eyeboard.ui.context import MainDatasetContext, ReadingOptions
+from eyeboard.ui.text import escape_markdown
 
 
 def render_compare_tab(

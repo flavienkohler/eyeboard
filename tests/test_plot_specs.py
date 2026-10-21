@@ -1,4 +1,4 @@
-from plot_studio.plotting.specs import build_plot_spec_from_builder
+from eyeboard.plotting.specs import build_plot_spec_from_builder
 
 
 def test_build_plot_spec_omits_secondary_axis_when_disabled():

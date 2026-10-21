@@ -7,8 +7,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from plot_studio.plotting.frame import prepare_plot_frame
-from plot_studio.services.columns import resolve_column
+from eyeboard.plotting.frame import prepare_plot_frame
+from eyeboard.services.columns import resolve_column
 
 LOGGER = logging.getLogger(__name__)
 COLUMN_PREVIEW_MAX_POINTS = 300

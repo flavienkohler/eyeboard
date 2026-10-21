@@ -1,6 +1,6 @@
 import pandas as pd
 
-from plot_studio.services.numeric import coerce_numeric
+from eyeboard.services.numeric import coerce_numeric
 
 
 def test_numeric_columns_are_returned_untouched():

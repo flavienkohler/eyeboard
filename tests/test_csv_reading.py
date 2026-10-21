@@ -2,7 +2,7 @@ from io import BytesIO
 
 import pytest
 
-from plot_studio.services.csv_reading import (
+from eyeboard.services.csv_reading import (
     CsvReadError,
     detect_separator_from_sample,
     read_csv_bytes,

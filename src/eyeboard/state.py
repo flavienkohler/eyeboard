@@ -3,7 +3,7 @@
 from collections.abc import MutableMapping
 from typing import Any
 
-from plot_studio.services.dashboards import load_dashboards
+from eyeboard.services.dashboards import load_dashboards
 
 RECENT_DASHBOARD_LIMIT = 8
 

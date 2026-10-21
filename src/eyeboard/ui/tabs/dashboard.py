@@ -5,18 +5,18 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from plot_studio.config import DATE_PARSE_MODES
-from plot_studio.plotting.figures import render_plot_from_spec
-from plot_studio.services.dashboard_sync import (
+from eyeboard.config import DATE_PARSE_MODES
+from eyeboard.plotting.figures import render_plot_from_spec
+from eyeboard.services.dashboard_sync import (
     apply_visible_y_ranges,
     compute_dashboard_sync_x_range,
     prepare_dashboard_x_columns,
 )
-from plot_studio.services.dashboards import validate_dashboard
-from plot_studio.services.date_parsing import parse_dates_flexible
-from plot_studio.state import remember_recent_dashboard
-from plot_studio.ui.context import MainDatasetContext
-from plot_studio.ui.text import escape_markdown
+from eyeboard.services.dashboards import validate_dashboard
+from eyeboard.services.date_parsing import parse_dates_flexible
+from eyeboard.state import remember_recent_dashboard
+from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.text import escape_markdown
 
 
 def render_dashboard_tab(dataset: MainDatasetContext) -> None:

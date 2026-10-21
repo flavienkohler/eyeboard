@@ -3,7 +3,7 @@
 import difflib
 from collections.abc import Sequence
 
-from plot_studio.config import DATE_KEYWORDS
+from eyeboard.config import DATE_KEYWORDS
 
 
 def normalize_colname(name: str | None) -> str:

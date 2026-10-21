@@ -1,6 +1,6 @@
 import pandas as pd
 
-from plot_studio.plotting.figures import (
+from eyeboard.plotting.figures import (
     make_column_preview_figure,
     render_plot_from_spec,
 )

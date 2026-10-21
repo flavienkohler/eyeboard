@@ -1,4 +1,4 @@
-from plot_studio.services.columns import (
+from eyeboard.services.columns import (
     guess_date_column,
     normalize_colname,
     resolve_column,

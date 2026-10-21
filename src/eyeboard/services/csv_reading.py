@@ -10,8 +10,8 @@ from typing import Any
 import pandas as pd
 from pandas.api.types import is_object_dtype
 
-from plot_studio.config import CANDIDATE_SEPARATORS, ENCODING_OPTIONS
-from plot_studio.models import CsvReadReport
+from eyeboard.config import CANDIDATE_SEPARATORS, ENCODING_OPTIONS
+from eyeboard.models import CsvReadReport
 
 LOGGER = logging.getLogger(__name__)
 

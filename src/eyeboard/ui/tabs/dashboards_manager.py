@@ -5,20 +5,20 @@ import uuid
 
 import streamlit as st
 
-from plot_studio.config import PLOT_TYPES, THEMES
-from plot_studio.plotting.figures import render_plot_from_spec
-from plot_studio.plotting.specs import build_plot_spec_from_builder
-from plot_studio.services.clock import utc_now_iso
-from plot_studio.services.columns import normalize_colname
-from plot_studio.services.dashboards import (
+from eyeboard.config import PLOT_TYPES, THEMES
+from eyeboard.plotting.figures import render_plot_from_spec
+from eyeboard.plotting.specs import build_plot_spec_from_builder
+from eyeboard.services.clock import utc_now_iso
+from eyeboard.services.columns import normalize_colname
+from eyeboard.services.dashboards import (
     remove_dashboard_plot,
     save_dashboards,
     update_dashboard_plot,
     validate_dashboard,
 )
-from plot_studio.state import prune_recent_dashboard_ids
-from plot_studio.ui.context import MainDatasetContext
-from plot_studio.ui.text import escape_markdown
+from eyeboard.state import prune_recent_dashboard_ids
+from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.text import escape_markdown
 
 
 def _persist_configs_with_feedback(

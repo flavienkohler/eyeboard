@@ -4,7 +4,7 @@ from typing import Any
 
 import pandas as pd
 
-from plot_studio.services.numeric import NumericConversion, coerce_numeric
+from eyeboard.services.numeric import NumericConversion, coerce_numeric
 
 AGGREGATIONS = ("mean", "sum", "min", "max", "median")
 _DECIMAL_COMMA_HINT = (

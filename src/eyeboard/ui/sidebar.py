@@ -3,14 +3,14 @@
 import pandas as pd
 import streamlit as st
 
-from plot_studio.config import DATE_PARSE_MODES, ENCODING_OPTIONS
-from plot_studio.services.columns import guess_date_column
-from plot_studio.services.recent_csvs import (
+from eyeboard.config import DATE_PARSE_MODES, ENCODING_OPTIONS
+from eyeboard.services.columns import guess_date_column
+from eyeboard.services.recent_csvs import (
     format_recent_csv_details,
     list_recent_csvs,
     touch_recent_csv,
 )
-from plot_studio.ui.context import ReadingOptions, SidebarSelection
+from eyeboard.ui.context import ReadingOptions, SidebarSelection
 
 
 def render_sidebar() -> SidebarSelection:

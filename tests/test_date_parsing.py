@@ -1,6 +1,6 @@
 import pandas as pd
 
-from plot_studio.services.date_parsing import (
+from eyeboard.services.date_parsing import (
     infer_dayfirst_from_series,
     parse_dates_flexible,
 )

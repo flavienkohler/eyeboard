@@ -1,6 +1,6 @@
 import pandas as pd
 
-from plot_studio.plotting.frame import prepare_plot_frame
+from eyeboard.plotting.frame import prepare_plot_frame
 
 
 def _spec(**overrides):

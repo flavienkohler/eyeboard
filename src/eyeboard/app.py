@@ -13,10 +13,11 @@ from eyeboard.services.recent_csvs import (
     get_recent_csv_entry,
     remember_recent_csv,
 )
-from eyeboard.state import initialize_session_state
+from eyeboard.state import initialize_state
 from eyeboard.ui.cache import load_table_cached, parse_table_cached
 from eyeboard.ui.context import MainDatasetContext, SidebarSelection
 from eyeboard.ui.header import render_dataset_summary, render_header
+from eyeboard.ui.session import state
 from eyeboard.ui.sidebar import render_date_options, render_sidebar, upload_signature
 from eyeboard.ui.tabs.compare import render_compare_tab
 from eyeboard.ui.tabs.dashboard import render_dashboard_tab
@@ -34,10 +35,10 @@ def main() -> None:
         layout=APP_LAYOUT,
     )
 
-    initialize_session_state(st.session_state)
+    initialize_state(state)
     render_header()
 
-    render_dashboards_load_problems(st.session_state["dashboards_loaded"])
+    render_dashboards_load_problems(state.dashboards_loaded)
 
     sidebar_selection = render_sidebar()
     read_options = sidebar_selection.read_options
@@ -112,18 +113,18 @@ def resolve_source(selection: SidebarSelection) -> DataSource | None:
 def remember_source(selection: SidebarSelection, source: DataSource) -> None:
     """Record the loaded file in the recent list, once per new upload."""
     if selection.recent_csv_id is not None:
-        st.session_state["active_recent_csv_id"] = selection.recent_csv_id
-        st.session_state["active_csv_source"] = "recent"
+        state.active_recent_csv_id = selection.recent_csv_id
+        state.active_csv_source = "recent"
         return
 
     uploaded = selection.uploaded_file
-    if uploaded is None or st.session_state.get("remembered_upload_key") == source.key:
+    if uploaded is None or state.remembered_upload_key == source.key:
         return
     entry = remember_recent_csv(uploaded.name, uploaded.getvalue())
-    st.session_state["remembered_upload_key"] = source.key
-    st.session_state["active_recent_csv_id"] = entry.get("id")
-    st.session_state["active_csv_source"] = "upload"
-    st.session_state["last_uploaded_csv_signature"] = upload_signature(uploaded)
+    state.remembered_upload_key = source.key
+    state.active_recent_csv_id = entry.get("id")
+    state.active_csv_source = "upload"
+    state.last_uploaded_csv_signature = upload_signature(uploaded)
 
 
 def build_main_dataset_context(

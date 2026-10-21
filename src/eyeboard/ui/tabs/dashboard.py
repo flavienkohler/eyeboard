@@ -14,6 +14,7 @@ from eyeboard.services.dashboard_sync import (
 )
 from eyeboard.state import remember_recent_dashboard
 from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.session import state
 from eyeboard.ui.text import escape_markdown
 
 
@@ -24,7 +25,7 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
         "Select one or more saved dashboards. Each dashboard renders its saved plots on the current dataset."
     )
 
-    dashboards = st.session_state["dashboards"]
+    dashboards = state.dashboards
     if not dashboards:
         st.info("No saved dashboards yet. Build one in **Plot Builder** and save it.")
         return
@@ -33,7 +34,7 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
     dashboards_by_id = {dashboard.id: dashboard for dashboard in ordered}
     dashboard_options = [dashboard.id for dashboard in ordered]
 
-    active_id = st.session_state.get("active_dashboard_id")
+    active_id = state.active_dashboard_id
     default_selected = (
         [active_id] if active_id in dashboard_options else dashboard_options[:1]
     )
@@ -45,8 +46,8 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
     )
 
     if selected_dashboard_ids:
-        st.session_state["active_dashboard_id"] = selected_dashboard_ids[0]
-        remember_recent_dashboard(st.session_state, selected_dashboard_ids[0])
+        state.active_dashboard_id = selected_dashboard_ids[0]
+        remember_recent_dashboard(state, selected_dashboard_ids[0])
 
     if not selected_dashboard_ids:
         st.info("Select at least one dashboard.")

@@ -17,6 +17,7 @@ from eyeboard.services.dashboards import find_dashboard_by_name
 from eyeboard.state import remember_recent_dashboard
 from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.persistence import persist_dashboards_with_feedback
+from eyeboard.ui.session import state
 from eyeboard.ui.text import escape_markdown
 
 LOGGER = logging.getLogger(__name__)
@@ -163,16 +164,14 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
     st.caption(
         "Select an existing dashboard to append this plot, or type a new name to create one."
     )
-    pending_dashboard_id = st.session_state.pop(
-        "plot_builder_pending_dashboard_id",
-        None,
-    )
+    pending_dashboard_id = state.plot_builder_pending_dashboard_id
     if pending_dashboard_id is not None:
+        state.plot_builder_pending_dashboard_id = None
         st.session_state["plot_builder_existing_dashboard_id"] = pending_dashboard_id
-        st.session_state["plot_builder_last_dashboard_id"] = pending_dashboard_id
+        state.plot_builder_last_dashboard_id = pending_dashboard_id
 
     ordered_dashboards = sorted(
-        st.session_state["dashboards"],
+        state.dashboards,
         key=lambda dashboard: dashboard.name.lower(),
     )
     dashboard_by_id = {dashboard.id: dashboard for dashboard in ordered_dashboards}
@@ -184,12 +183,12 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
         ),
         key="plot_builder_existing_dashboard_id",
     )
-    previous_dashboard_id = st.session_state.get("plot_builder_last_dashboard_id")
+    previous_dashboard_id = state.plot_builder_last_dashboard_id
     if selected_dashboard_id != previous_dashboard_id:
         st.session_state["plot_builder_dashboard_name"] = (
             dashboard_by_id[selected_dashboard_id].name if selected_dashboard_id else ""
         )
-        st.session_state["plot_builder_last_dashboard_id"] = selected_dashboard_id
+        state.plot_builder_last_dashboard_id = selected_dashboard_id
 
     dash_name = st.text_input(
         "Dashboard name",
@@ -230,7 +229,7 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
                 st.warning(escape_markdown(line))
             return
         existing_dashboard = find_dashboard_by_name(
-            st.session_state["dashboards"],
+            state.dashboards,
             dashboard_name,
         )
         if existing_dashboard is not None:
@@ -244,19 +243,19 @@ def render_plot_builder_tab(dataset: MainDatasetContext) -> None:
                 updated_dashboard
                 if dashboard.id == existing_dashboard.id
                 else dashboard
-                for dashboard in st.session_state["dashboards"]
+                for dashboard in state.dashboards
             ]
             success_message = "Plot added to the selected dashboard."
         else:
             updated_dashboard = Dashboard(name=dashboard_name, plots=[new_plot])
-            new_dashboards = [*st.session_state["dashboards"], updated_dashboard]
+            new_dashboards = [*state.dashboards, updated_dashboard]
             success_message = "New dashboard created and selected."
         if persist_dashboards_with_feedback(
             new_dashboards, success_message=success_message
         ):
-            st.session_state["active_dashboard_id"] = updated_dashboard.id
-            st.session_state["plot_builder_pending_dashboard_id"] = updated_dashboard.id
-            remember_recent_dashboard(st.session_state, updated_dashboard.id)
+            state.active_dashboard_id = updated_dashboard.id
+            state.plot_builder_pending_dashboard_id = updated_dashboard.id
+            remember_recent_dashboard(state, updated_dashboard.id)
             st.rerun()
 
 

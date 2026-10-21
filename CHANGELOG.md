@@ -19,6 +19,7 @@
 - Loading and date parsing are now pure functions (`services/dataset.py`) cached by Streamlit on a cheap source key and the reading options, so a rerun no longer re-reads or re-parses the file. The sidebar builds the date options after the file is loaded (no more stale column list), a recent file is touched and an upload remembered once instead of on every rerun, and the dataframe is no longer kept in session state.
 - Choosing "(none)" as the date column now works; the detected date column is proposed once per loaded file.
 - The Dashboard and Compare tabs no longer have their own date column, order and format controls: they use the date settings of the sidebar, so every tab parses dates the same way (parsing is cached).
+- The application state is now typed (`AppState`): every key the app owns is declared once with its type and default, and a mistyped key is an error instead of a silent new entry.
 
 ## 0.2.0 - 2026-07-01
 

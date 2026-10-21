@@ -18,6 +18,7 @@ from eyeboard.services.recent_csvs import (
 from eyeboard.state import remember_recent_dashboard
 from eyeboard.ui.cache import load_table_cached, parse_table_cached
 from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.session import state
 from eyeboard.ui.text import escape_markdown
 
 
@@ -138,7 +139,7 @@ def render_compare_tab(dataset: MainDatasetContext) -> None:
         f"B: `{cmp_label_b or 'CSV B'}` ({len(cmp_df_b):,} rows)"
     )
 
-    cmp_dashboards = st.session_state["dashboards"]
+    cmp_dashboards = state.dashboards
     if not cmp_dashboards:
         st.info("No saved plot dashboards yet. Create one in **Plot Builder** first.")
         return
@@ -147,7 +148,7 @@ def render_compare_tab(dataset: MainDatasetContext) -> None:
     cmp_dashboards_by_id = {dashboard.id: dashboard for dashboard in cmp_ordered}
     cmp_dashboard_options = [dashboard.id for dashboard in cmp_ordered]
 
-    cmp_active_id = st.session_state.get("active_dashboard_id")
+    cmp_active_id = state.active_dashboard_id
     cmp_default = (
         [cmp_active_id]
         if cmp_active_id in cmp_dashboard_options
@@ -162,8 +163,8 @@ def render_compare_tab(dataset: MainDatasetContext) -> None:
     )
 
     if cmp_selected_dashboard_ids:
-        st.session_state["active_dashboard_id"] = cmp_selected_dashboard_ids[0]
-        remember_recent_dashboard(st.session_state, cmp_selected_dashboard_ids[0])
+        state.active_dashboard_id = cmp_selected_dashboard_ids[0]
+        remember_recent_dashboard(state, cmp_selected_dashboard_ids[0])
 
     if not cmp_selected_dashboard_ids:
         st.info("Select at least one dashboard to compare.")

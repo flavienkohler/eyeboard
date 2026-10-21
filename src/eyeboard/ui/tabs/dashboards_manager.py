@@ -27,6 +27,7 @@ from eyeboard.services.dashboards import (
 )
 from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.persistence import persist_dashboards_with_feedback
+from eyeboard.ui.session import state
 from eyeboard.ui.text import escape_markdown
 
 DEFAULT_COLORS = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"]
@@ -51,7 +52,7 @@ def render_dashboards_manager_tab(dataset: MainDatasetContext) -> None:
         "Manage dashboards, edit or remove individual plots, export/import, and edit JSON."
     )
 
-    dashboards: list[Dashboard] = st.session_state["dashboards"]
+    dashboards: list[Dashboard] = state.dashboards
     if not dashboards:
         st.info("No dashboards saved yet.")
         return
@@ -93,8 +94,8 @@ def render_dashboards_manager_tab(dataset: MainDatasetContext) -> None:
             if persist_dashboards_with_feedback(
                 new_dashboards, success_message="Deleted."
             ):
-                if st.session_state.get("active_dashboard_id") == sel_id:
-                    st.session_state["active_dashboard_id"] = None
+                if state.active_dashboard_id == sel_id:
+                    state.active_dashboard_id = None
                 st.rerun()
 
     st.divider()
@@ -157,7 +158,7 @@ def render_import(dashboards: list[Dashboard]) -> None:
     if upl is None:
         return
     upload_signature = f"{upl.name}:{len(upl.getvalue())}"
-    if upload_signature == st.session_state.get("last_imported_json_signature"):
+    if upload_signature == state.last_imported_json_signature:
         return
 
     try:
@@ -175,7 +176,7 @@ def render_import(dashboards: list[Dashboard]) -> None:
     if persist_dashboards_with_feedback(
         [*dashboards, imported], success_message="Imported dashboard."
     ):
-        st.session_state["last_imported_json_signature"] = upload_signature
+        state.last_imported_json_signature = upload_signature
         st.rerun()
 
 

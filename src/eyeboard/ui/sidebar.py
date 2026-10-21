@@ -11,6 +11,7 @@ from eyeboard.services.recent_csvs import (
     touch_recent_csv,
 )
 from eyeboard.ui.context import SidebarSelection
+from eyeboard.ui.session import state
 
 
 def render_sidebar() -> SidebarSelection:
@@ -55,15 +56,15 @@ def render_data_section():
                     width="stretch",
                     type=(
                         "primary"
-                        if st.session_state.get("active_recent_csv_id") == entry_id
-                        and st.session_state.get("active_csv_source") == "recent"
+                        if state.active_recent_csv_id == entry_id
+                        and state.active_csv_source == "recent"
                         else "secondary"
                     ),
                 ):
                     selected_recent_csv_id = entry_id
                     touch_recent_csv(entry_id)
-                    st.session_state["active_recent_csv_id"] = entry_id
-                    st.session_state["active_csv_source"] = "recent"
+                    state.active_recent_csv_id = entry_id
+                    state.active_csv_source = "recent"
                     st.rerun()
                 st.caption(format_recent_csv_details(entry))
 
@@ -103,40 +104,39 @@ def render_data_section():
                     ):
                         selected_recent_csv_id = selected_older_recent
                         touch_recent_csv(selected_older_recent)
-                        st.session_state["active_recent_csv_id"] = selected_older_recent
-                        st.session_state["active_csv_source"] = "recent"
+                        state.active_recent_csv_id = selected_older_recent
+                        state.active_csv_source = "recent"
                         st.rerun()
 
         if selected_recent_csv_id is None and (
-            st.session_state.get("active_csv_source") == "recent"
-            and st.session_state.get("active_recent_csv_id") is not None
+            state.active_csv_source == "recent"
+            and state.active_recent_csv_id is not None
         ):
-            selected_recent_csv_id = st.session_state["active_recent_csv_id"]
+            selected_recent_csv_id = state.active_recent_csv_id
         elif (
             selected_recent_csv_id is None
             and uploaded_file is not None
-            and uploaded_signature
-            != st.session_state.get("last_uploaded_csv_signature")
+            and uploaded_signature != state.last_uploaded_csv_signature
         ):
-            st.session_state["active_csv_source"] = "upload"
-            st.session_state["active_recent_csv_id"] = None
+            state.active_csv_source = "upload"
+            state.active_recent_csv_id = None
         elif (
             selected_recent_csv_id is None
             and uploaded_file is not None
-            and st.session_state.get("active_csv_source") == "upload"
+            and state.active_csv_source == "upload"
         ):
-            st.session_state["active_recent_csv_id"] = None
+            state.active_recent_csv_id = None
 
         st.markdown("##### Dashboard")
-        dashboards = st.session_state["dashboards"]
+        dashboards = state.dashboards
         if dashboards:
             name_by_id = {dashboard.id: dashboard.name for dashboard in dashboards}
             ordered = sorted(dashboards, key=lambda dashboard: dashboard.name.lower())
 
             options = [None] + [dashboard.id for dashboard in ordered]
             selected_index = 0
-            if st.session_state["active_dashboard_id"] in options:
-                selected_index = options.index(st.session_state["active_dashboard_id"])
+            if state.active_dashboard_id in options:
+                selected_index = options.index(state.active_dashboard_id)
             active_id = st.selectbox(
                 "Active dashboard",
                 options=options,
@@ -145,10 +145,10 @@ def render_data_section():
                 ),
                 index=selected_index,
             )
-            st.session_state["active_dashboard_id"] = active_id
+            state.active_dashboard_id = active_id
         else:
             st.info("No dashboards yet. Build one in **Plot Builder** and save it.")
-            st.session_state["active_dashboard_id"] = None
+            state.active_dashboard_id = None
 
         st.caption(
             "Dashboards are saved to `saved_configs.json` (re-rendered on the current CSV)."
@@ -227,15 +227,12 @@ def render_date_options(columns: list[str], source_key: str) -> DateSettings:
     date_guess = guess_date_column(columns)
     options = [None, *columns]
 
-    if (
-        st.session_state.get("date_settings_source") != source_key
-        or st.session_state.get("read_date_col") not in options
-    ):
-        st.session_state["read_date_col"] = date_guess
-        st.session_state["date_settings_source"] = source_key
+    if state.date_settings_source != source_key or state.read_date_col not in options:
+        state.read_date_col = date_guess
+        state.date_settings_source = source_key
 
-    if st.session_state.get("read_date_mode") not in DATE_PARSE_MODES:
-        st.session_state["read_date_mode"] = "Auto-detect"
+    if state.read_date_mode not in DATE_PARSE_MODES:
+        state.read_date_mode = "Auto-detect"
 
     with st.sidebar, st.expander("Date parsing", expanded=False):
         st.selectbox(
@@ -258,7 +255,7 @@ def render_date_options(columns: list[str], source_key: str) -> DateSettings:
         )
 
     return DateSettings(
-        column=st.session_state["read_date_col"],
-        mode=st.session_state["read_date_mode"],
-        format=(st.session_state.get("read_date_format") or "").strip() or None,
+        column=state.read_date_col,
+        mode=state.read_date_mode,
+        format=(state.read_date_format or "").strip() or None,
     )

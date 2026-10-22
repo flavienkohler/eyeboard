@@ -1,99 +1,66 @@
 # EyeBoard
 
-A time-series explorer for CSV files. Load a file, check at a glance how it was read and what each column holds, build plots, save them as reusable dashboards, and replay the same dashboards on another file to compare two runs. It is domain-neutral: sensors, simulations, logs, anything with a column of timestamps.
+**Open a time-series CSV, see what is really in it, plot it, and compare it with another run.**
 
 ![EyeBoard with the demo data: the sidebar, the read report and the column table](assets/screenshots/overview.png)
 
-## Quick start
+EyeBoard is a small app that runs on your own computer. You give it a CSV file (sensor readings, a simulation output, a log) and it helps you answer the first questions quickly. Did it read the file the way I think it did? Which columns are empty, constant or broken? What does the data look like? How does this run differ from that one?
 
-You need [uv](https://docs.astral.sh/uv/) (a fast Python package manager). From the project folder:
+Spreadsheets struggle with tens of thousands of rows and guess at your dates and decimals without telling you. A notebook gives full control, but you rewrite the same plotting code for every new file. EyeBoard sits in between: you look at a file, build the plots you care about once, and replay them on the next file.
+
+## Try it in a minute
+
+You need [uv](https://docs.astral.sh/uv/), a fast Python package manager that also fetches the right Python for you.
 
 ```bash
+git clone https://github.com/flavienkohler/eyeboard
+cd eyeboard
 uv run eyeboard
 ```
 
-This installs the dependencies on first use and opens EyeBoard in your browser. Extra options go to Streamlit, for example `uv run eyeboard --server.port 8600`. On Windows you can also double-click `run_app.bat`: it checks that `uv` is installed (and offers to install it), then runs the same command.
+The first start installs what it needs and opens EyeBoard in your browser. On Windows you can also double-click `run_app.bat`.
 
-No file at hand? Click **Try the demo data** in the sidebar. It loads a synthetic weather and river station (two months, hourly), and the Compare tab offers a second, biased "model run" of the same period. The files are also in [examples/](examples) if you prefer to upload them.
+No file at hand? Click **Try the demo data** in the sidebar. It loads two months of a made-up weather and river station, and the Compare tab offers a second "model run" of the same period. The files are in [examples/](examples) if you prefer to upload them.
 
-Supported: Python 3.11 to 3.13.
+## What you can do
 
-## What it does
+### Check a file before you trust it
 
-The sidebar is for data only: upload a file or pick a recent one, adjust the reading options, and see a card with the file that is loaded. The interface is available in English and French (selector at the bottom of the sidebar). The work happens in four tabs.
+The **Explore** tab starts with how the file was read, then lists every column: its type, how much is missing, how many distinct values it has, its range, and anything suspicious (a constant column, an empty one, numbers hiding in text, values written with a decimal comma). A search box filters the table and the small plot of each column.
 
-| Tab | What it is for |
-| --- | --- |
-| **Explore** | How the file was read, then one row per column: type, missing share, exact number of distinct values, range, and checks (constant, empty, values that are not numbers, numbers written with a decimal comma). A search box filters the table and the small per-column plots. |
-| **Plot** | Controls on the left, the figure on the right. Line, scatter, bar and area plots, a secondary Y axis, grouping by a column, aggregation, per-series colors, and a date range. Save the plot into a dashboard. |
-| **Dashboards** | A dashboard is a named stack of plots that does not depend on any file, so it can be redrawn on whatever file is loaded. Show several at once with a shared x axis. Under *Manage dashboards*: rename, reorder, edit and remove plots, delete, export and import as JSON. |
-| **Compare** | The loaded file is A; pick B. Every plot of the chosen dashboards is drawn as an overlay (B dashed over A) or side by side, with RMSE, MAE, bias and correlation per series. B is lined up with A by timestamps or by elapsed time since each start. |
+![Explore tab](assets/screenshots/explore.png)
 
-| | |
-| --- | --- |
-| ![Plot tab](assets/screenshots/plot.png) | ![Dashboards tab](assets/screenshots/dashboards.png) |
-| ![Compare tab](assets/screenshots/compare.png) | ![Explore tab](assets/screenshots/explore.png) |
+### Build a plot, keep it
 
-### Trusting what was detected
+In the **Plot** tab the controls sit beside the figure, so you tune it while you watch it. Lines, scatter, bars and areas, a secondary Y axis, grouping by a column, aggregation, your own colors, a date range. When it looks right, save it into a dashboard.
 
-Automatic detection is convenient and sometimes wrong, so EyeBoard shows what it decided. The read report at the top of Explore and the card in the sidebar list the separator, decimal, encoding, header and date order, and mark the ones it found itself with `(auto)`. A banner warns when numbers look written with a decimal comma but are read as text. Values that cannot be converted to numbers are reported, never silently dropped.
+![Plot tab](assets/screenshots/plot.png)
 
-### Exports
+### Replay it on any file
 
-Switch on *Prepare export files* under a chart to download it as a standalone HTML page (it opens offline, zoom included), and the plotted data or the comparison metrics as CSV. For a PNG, use the camera icon in the chart's toolbar.
+A dashboard is a named stack of plots that does not depend on a particular file. Open another CSV with the same kind of columns and the whole dashboard is redrawn on it, with a shared time axis you can zoom together. Reorder, edit and remove plots, or export a dashboard as JSON to share it.
 
-## Where files are kept
+![Dashboards tab](assets/screenshots/dashboards.png)
 
-EyeBoard stores its files in one data folder, whatever the directory it is started from:
+### Compare two runs
 
-- `dashboards.json`: your saved dashboards, in a versioned format. Older files are migrated automatically and a backup copy is kept.
-- `recent/`: copies of the CSV files you opened, for the recent files list. The sidebar shows the exact location and has a *Clear recent files* button.
+The file you loaded is A; pick B. Every plot of your dashboards is drawn with B dashed over A, or side by side, and a table gives the RMSE, MAE, bias and correlation for each series. B can be lined up with A on the same timestamps, or from each file's own start when two runs began at different times.
 
-The folder is `%APPDATA%/eyeboard` on Windows (the standard per-user data folder on other systems). Set the `EYEBOARD_HOME` environment variable to use another folder. Files kept by earlier versions in the working directory (`saved_configs.json`, `data/.recent_csvs`) are copied there the first time the app starts; the originals are left in place.
+![Compare tab](assets/screenshots/compare.png)
 
-EyeBoard does not send any usage statistics: Streamlit's telemetry is switched off by the launcher and in `.streamlit/config.toml`.
+## It tells you what it guessed
 
-## How it is built
+Automatic detection is convenient and sometimes wrong, so EyeBoard shows its decisions instead of hiding them. The read report and the sidebar list the separator, decimal, encoding, header and date order, and mark with `(auto)` the ones it found on its own. A banner warns when numbers look written with a decimal comma but are read as text, and values that cannot be converted are reported, never silently dropped.
 
-```text
-src/eyeboard/
-  services/     pure logic, no Streamlit: reading and decoding CSV, date parsing,
-                numeric conversion, column profile, comparison metrics, the
-                dashboards store, demo data
-  dashboards/   typed, validated models of dashboards and plots, and the file format
-  plotting/     from a plot specification and a table to a Plotly figure; overlay; export
-  ui/           everything that draws: the sidebar, the four tabs, the shared plot form,
-                caches. The only layer that imports Streamlit (besides the launcher)
-  i18n.py       the translation helper; translations/ holds one table per language
-  state.py      the application state, typed
-```
+## Take your results with you
 
-A few choices worth knowing:
+Under each chart, *Prepare export files* gives a standalone HTML page of the chart (it opens offline and keeps the zoom), and the plotted data or the comparison metrics as CSV. For a PNG, use the camera icon in the chart's toolbar.
 
-- **Streamlit and Plotly.** Streamlit keeps the app a single Python codebase, which is the right size for a tool used by one person on their own files. The price is that the script reruns on every interaction, so loading, parsing and profiling are cached on a cheap key (the file identity and the options), and heavy output such as exports is built only on request.
-- **Logic out of the interface.** The rules that matter (what counts as a number, how B is lined up on A, where a plot is added) are plain functions with tests, not code inside widgets.
-- **Dashboards are data, not files.** A plot stores column names, not values. Columns are matched by normalized name when a dashboard is replayed, and the notes say what was matched or missing.
-- **Translations are a plain table.** The English text is the key (`t("Upload CSV")`), a Python dictionary gives the French, and a missing entry falls back to English. Tests check that every text of the code has a French entry with the same fields, and that no entry is left unused.
-- **Validated at the edge.** Saved dashboards, imported JSON and the JSON editor all go through the same pydantic models, with readable error messages.
+## Your files stay on your machine
 
-## Development
+Nothing is uploaded anywhere and no usage statistics are sent. EyeBoard keeps your saved dashboards (`dashboards.json`) and copies of the files you opened (for the recent list) in one folder: `%APPDATA%/eyeboard` on Windows, the standard per-user data folder elsewhere, or the folder named by the `EYEBOARD_HOME` environment variable. The sidebar shows the exact location and can clear the recent files.
 
-```bash
-uv sync                      # install the app and the dev tools
-uv run pytest                # run the tests (add --cov=eyeboard for coverage)
-uv run ruff check .          # lint
-uv run ruff format .         # format
-uv run pre-commit install    # lint and format on every commit
-```
-
-The pictures in `assets/screenshots/` are taken from the demo data by `scripts/screenshots.py`, which drives the app with a headless browser (Playwright is used on demand and is not a dependency of the project):
-
-```bash
-uv run --with playwright python -m playwright install chromium   # once
-uv run --with playwright python scripts/screenshots.py
-```
-
-`uv.lock` pins the exact versions used in development; the declared minimum versions (Streamlit 1.49, pandas 2.2.2, plotly 5.18, pydantic 2.7) are tested. The demo files in `examples/` are generated by a seeded script (`uv run python -m eyeboard.services.demo examples`), and a test checks that they match it.
+The interface is available in English and French (selector at the bottom of the sidebar). Python 3.11 to 3.13 is supported.
 
 ## License
 

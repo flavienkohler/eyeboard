@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from eyeboard.i18n import t
 from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
 
 _AUTO_PREFIX = "Auto-detected "
@@ -16,7 +17,8 @@ class DetectedSetting:
     auto: bool
 
     def text(self) -> str:
-        return f"{self.value} (auto)" if self.auto else self.value
+        value = t(self.value)
+        return t("{value} (auto)", value=value) if self.auto else value
 
 
 def detected_settings(

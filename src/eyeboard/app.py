@@ -5,6 +5,7 @@ import streamlit as st
 
 from eyeboard.config import APP_LAYOUT, APP_PAGE_ICON, APP_PAGE_TITLE
 from eyeboard.dashboards.document import LoadResult
+from eyeboard.i18n import set_language, t
 from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
 from eyeboard.paths import data_dir
 from eyeboard.services.columns import guess_date_column
@@ -46,6 +47,7 @@ def main() -> None:
     )
 
     initialize_state(state)
+    set_language(state.language)
     render_header()
 
     render_legacy_import_notice(state.legacy_import)
@@ -56,12 +58,12 @@ def main() -> None:
 
     source = resolve_source(sidebar_selection)
     if source is None:
-        st.info("Upload a CSV to start, or try the demo data from the sidebar.")
+        st.info(t("Upload a CSV to start, or try the demo data from the sidebar."))
         st.stop()
 
     df, read_report, error = load_table_cached(source, read_options)
     if error:
-        st.error(f"Could not read CSV: {error}")
+        st.error(t("Could not read CSV: {error}", error=error))
         st.stop()
     remember_source(sidebar_selection, source)
 
@@ -75,10 +77,10 @@ def main() -> None:
 
     tabs = st.tabs(
         [
-            "Explore",
-            "Plot",
-            "Dashboards",
-            "Compare",
+            t("Explore"),
+            t("Plot"),
+            t("Dashboards"),
+            t("Compare"),
         ]
     )
 
@@ -98,15 +100,23 @@ def render_legacy_import_notice(imported: LegacyImport) -> None:
         return
     copied = []
     if imported.dashboards_from is not None:
-        copied.append(f"your dashboards (from `{imported.dashboards_from}`)")
+        copied.append(
+            t("your dashboards (from `{path}`)", path=imported.dashboards_from)
+        )
     if imported.recent_files:
         copied.append(
-            f"{imported.recent_files} recent file(s) (from `{imported.recent_from}`)"
+            t(
+                "{count} recent file(s) (from `{path}`)",
+                count=imported.recent_files,
+                path=imported.recent_from,
+            )
         )
     st.info(
-        f"EyeBoard now keeps its files in `{data_dir()}`. Copied: "
-        + " and ".join(copied)
-        + ". The old files are no longer used and can be deleted."
+        t(
+            "EyeBoard now keeps its files in `{folder}`. Copied: {copied}. The old files are no longer used and can be deleted.",
+            folder=data_dir(),
+            copied=t(" and ").join(copied),
+        )
     )
 
 
@@ -116,7 +126,7 @@ def render_dashboards_load_problems(loaded: LoadResult) -> None:
         return
     with st.container(border=True):
         show = st.error if loaded.blocked else st.warning
-        show("Some saved dashboards could not be loaded.")
+        show(t("Some saved dashboards could not be loaded."))
         for problem in loaded.problems:
             st.caption(escape_markdown(problem))
 
@@ -129,7 +139,7 @@ def resolve_source(selection: SidebarSelection) -> DataSource | None:
         source = source_for_recent(selection.recent_csv_id)
         if source is not None:
             return source
-        st.warning("The selected recent file is no longer available.")
+        st.warning(t("The selected recent file is no longer available."))
     if selection.uploaded_file is not None:
         return source_from_upload(selection.uploaded_file)
     return None

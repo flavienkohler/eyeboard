@@ -3,6 +3,7 @@
 import streamlit as st
 
 from eyeboard.config import APP_HEADER_SUBTITLE, APP_HEADER_TITLE
+from eyeboard.i18n import t
 from eyeboard.services.read_summary import detected_settings
 from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.text import escape_markdown
@@ -16,7 +17,7 @@ def render_header() -> None:
           <div>
             <div style="font-size: 28px; font-weight: 800; line-height: 1.0;">{APP_HEADER_TITLE}</div>
             <div style="font-size: 14px; opacity: 0.85; margin-top: 6px;">
-              {APP_HEADER_SUBTITLE}
+              {t(APP_HEADER_SUBTITLE)}
             </div>
           </div>
         </div>
@@ -29,24 +30,26 @@ def render_dataset_summary(dataset: MainDatasetContext) -> None:
     """Render top-of-page dataset summary metrics."""
     left, right = st.columns([2, 1], vertical_alignment="top")
     with left:
-        st.markdown(f"#### Data: {escape_markdown(dataset.label or 'CSV')}")
+        st.markdown(
+            t("#### Data: {name}", name=escape_markdown(dataset.label or "CSV"))
+        )
     with right:
         st.markdown("")
         action_col, tip_col = st.columns([0.7, 1.3], vertical_alignment="center")
         with action_col:
-            if st.button("Reload CSV", key="reload_current_csv", width="stretch"):
+            if st.button(t("Reload CSV"), key="reload_current_csv", width="stretch"):
                 st.rerun()
         with tip_col:
             st.caption(
-                "Tip: Use **Dashboards** for consistent plots across different CSVs."
+                t("Tip: Use **Dashboards** for consistent plots across different CSVs.")
             )
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Rows", f"{len(dataset.df):,}")
-    m2.metric("Columns", f"{len(dataset.cols):,}")
-    m3.metric("Missing cells", f"{int(dataset.df.isna().sum().sum()):,}")
+    m1.metric(t("Rows"), f"{len(dataset.df):,}")
+    m2.metric(t("Columns"), f"{len(dataset.cols):,}")
+    m3.metric(t("Missing cells"), f"{int(dataset.df.isna().sum().sum()):,}")
     m4.metric(
-        "Memory (approx.)",
+        t("Memory (approx.)"),
         f"{dataset.df.memory_usage(deep=True).sum() / (1024**2):.1f} MB",
     )
 
@@ -59,7 +62,7 @@ def render_read_report(dataset: MainDatasetContext) -> None:
     if read_report is None:
         return
 
-    parse_summary = "Not used"
+    parse_summary = t("Not used")
     if dataset.date_col:
         if dataset.date_parse_candidate_count > 0:
             success_rate = (
@@ -70,15 +73,15 @@ def render_read_report(dataset: MainDatasetContext) -> None:
                 f"({success_rate:.0%})"
             )
         else:
-            parse_summary = "No non-empty values"
+            parse_summary = t("No non-empty values")
 
     with st.container(border=True):
         title_col, source_col = st.columns([1.4, 1], vertical_alignment="center")
         with title_col:
-            st.caption("Read report")
+            st.caption(t("Read report"))
         with source_col:
             st.caption(
-                f"{read_report.source_kind}: `{read_report.source_label or dataset.label}`"
+                f"{t(read_report.source_kind)}: `{read_report.source_label or dataset.label}`"
             )
 
         by_name = {
@@ -91,21 +94,27 @@ def render_read_report(dataset: MainDatasetContext) -> None:
             )
         }
         c1, c2, c3, c4, c5, c6 = st.columns(6)
-        c1.metric("Separator", by_name["Separator"])
-        c2.metric("Decimal", by_name["Decimal"])
-        c3.metric("Encoding", by_name["Encoding"])
-        c4.metric("Header", by_name["Header"])
-        c5.metric("Date order", by_name.get("Date order", "n/a"))
-        c6.metric("Date parse", parse_summary)
+        c1.metric(t("Separator"), by_name["Separator"])
+        c2.metric(t("Decimal"), by_name["Decimal"])
+        c3.metric(t("Encoding"), by_name["Encoding"])
+        c4.metric(t("Header"), by_name["Header"])
+        c5.metric(t("Date order"), by_name.get("Date order", t("n/a")))
+        c6.metric(t("Date parse"), parse_summary)
 
         date_details = (
-            f"Date column: `{dataset.date_col}` | Mode: `{dataset.date_parse_mode}`"
+            t(
+                "Date column: `{column}` | Mode: `{mode}`",
+                column=dataset.date_col,
+                mode=t(dataset.date_parse_mode),
+            )
             if dataset.date_col
-            else "Date column: `(none selected)`"
+            else t("Date column: `(none selected)`")
         )
         if dataset.date_format:
-            date_details += f" | Format override: `{dataset.date_format}`"
-        st.caption(date_details + ". (auto) means EyeBoard found it, not you.")
+            date_details += t(
+                " | Format override: `{format}`", format=dataset.date_format
+            )
+        st.caption(date_details + t(". (auto) means EyeBoard found it, not you."))
 
         for warning in read_report.warnings:
             st.warning(warning)

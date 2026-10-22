@@ -1,4 +1,4 @@
-"""Draw two datasets on one figure: A as it is, B dashed in the same colours."""
+"""Draw two datasets on one figure: A as it is, B dashed in the same colors."""
 
 import plotly.colors
 import plotly.graph_objects as go

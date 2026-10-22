@@ -6,8 +6,9 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from eyeboard.dashboards.model import Dashboard
+from eyeboard.i18n import t
 from eyeboard.plotting.export import png_config
-from eyeboard.plotting.figures import render_plot_from_spec
+from eyeboard.plotting.figures import is_info_note, render_plot_from_spec
 from eyeboard.services.dashboard_sync import (
     apply_visible_y_ranges,
     compute_dashboard_sync_x_range,
@@ -25,7 +26,9 @@ def render_dashboard_view(dataset: MainDatasetContext) -> None:
 
     dashboards = state.dashboards
     if not dashboards:
-        st.info("No saved dashboards yet. Build one in the **Plot** tab and save it.")
+        st.info(
+            t("No saved dashboards yet. Build one in the **Plot** tab and save it.")
+        )
         return
 
     ordered = sorted(dashboards, key=lambda dashboard: dashboard.name.lower())
@@ -37,7 +40,7 @@ def render_dashboard_view(dataset: MainDatasetContext) -> None:
         [active_id] if active_id in dashboard_options else dashboard_options[:1]
     )
     selected_dashboard_ids = st.multiselect(
-        "Dashboards to show",
+        t("Dashboards to show"),
         options=dashboard_options,
         default=default_selected,
         format_func=lambda value: dashboards_by_id[value].name,
@@ -48,13 +51,13 @@ def render_dashboard_view(dataset: MainDatasetContext) -> None:
         remember_recent_dashboard(state, selected_dashboard_ids[0])
 
     if not selected_dashboard_ids:
-        st.info("Select at least one dashboard.")
+        st.info(t("Select at least one dashboard."))
         return
 
     dash_df, sync_x_axis, date_col_dash = render_dashboard_global_options(dataset)
     dash_filtered = render_dashboard_date_filter(dash_df, date_col_dash)
     if dash_filtered.empty:
-        st.warning("The current dashboard filters leave no rows to render.")
+        st.warning(t("The current dashboard filters leave no rows to render."))
     available_cols = list(dash_filtered.columns)
     dash_plot_df = prepare_dashboard_x_columns(
         dash_filtered,
@@ -82,7 +85,9 @@ def render_dashboard_view(dataset: MainDatasetContext) -> None:
         with st.container(border=True):
             title_col, created_col = st.columns([3, 1], vertical_alignment="bottom")
             title_col.subheader(escape_markdown(dashboard.name))
-            created_col.caption(f"Created: {escape_markdown(dashboard.created_at)}")
+            created_col.caption(
+                t("Created: {date}", date=escape_markdown(dashboard.created_at))
+            )
 
             dashboard_default_sync_range = (
                 compute_dashboard_sync_x_range(
@@ -99,7 +104,9 @@ def render_dashboard_view(dataset: MainDatasetContext) -> None:
             )
             if sync_x_axis:
                 st.caption(
-                    "Zoom any subplot in this dashboard to propagate its x-range to the others."
+                    t(
+                        "Zoom any subplot in this dashboard to propagate its x-range to the others."
+                    )
                 )
 
             combined_fig, warnings_by_plot = build_dashboard_figure(
@@ -114,20 +121,22 @@ def render_dashboard_view(dataset: MainDatasetContext) -> None:
                 if not warnings:
                     continue
                 with st.expander(
-                    f"Column resolution notes - {plot_title}",
+                    t("Column resolution notes - {plot_title}", plot_title=plot_title),
                     expanded=False,
                 ):
                     for warning in warnings:
-                        if warning.startswith("Matched "):
+                        if is_info_note(warning):
                             st.info(warning)
                         else:
                             st.warning(warning)
                     st.caption(
-                        "Tip: You can fix this by editing the dashboard under Manage dashboards."
+                        t(
+                            "Tip: You can fix this by editing the dashboard under Manage dashboards."
+                        )
                     )
 
             if combined_fig is None:
-                st.error("Could not render this dashboard on the current dataset.")
+                st.error(t("Could not render this dashboard on the current dataset."))
             else:
                 st.plotly_chart(
                     combined_fig,
@@ -148,10 +157,12 @@ def render_dashboard_global_options(
     """Render the dashboard options; dates come from the shared date settings."""
     st.divider()
     sync_x_axis = st.toggle(
-        "Sync x-axis across dashboard plots",
+        t("Sync x-axis across dashboard plots"),
         value=True,
         key="dash_sync_x_axis",
-        help="When enabled, dashboard charts share the same x-axis range when possible.",
+        help=t(
+            "When enabled, dashboard charts share the same x-axis range when possible."
+        ),
     )
     return dataset.df_parsed, sync_x_axis, dataset.date_col
 
@@ -169,9 +180,9 @@ def render_dashboard_date_filter(
             valid_dt = dt.dropna()
             if not valid_dt.empty:
                 min_d, max_d = valid_dt.min(), valid_dt.max()
-                st.markdown("##### Dashboard date range")
+                st.markdown(t("##### Dashboard date range"))
                 date_range = st.slider(
-                    "Filter date range",
+                    t("Filter date range"),
                     min_value=min_d.to_pydatetime(),
                     max_value=max_d.to_pydatetime(),
                     value=(min_d.to_pydatetime(), max_d.to_pydatetime()),
@@ -182,7 +193,7 @@ def render_dashboard_date_filter(
                     & (dash_df[date_col_dash] <= date_range[1])
                 ]
                 if dash_filtered.empty:
-                    st.warning("This date range leaves the dashboard with no rows.")
+                    st.warning(t("This date range leaves the dashboard with no rows."))
 
     return dash_filtered
 
@@ -201,7 +212,8 @@ def build_dashboard_figure(
         return None, []
 
     subplot_titles = [
-        plot.title or f"Plot {idx}" for idx, plot in enumerate(plots, start=1)
+        plot.title or t("Plot {index}", index=idx)
+        for idx, plot in enumerate(plots, start=1)
     ]
     specs = [[{"secondary_y": bool(plot.y2_cols)}] for plot in plots]
     combined_fig = make_subplots(
@@ -222,7 +234,7 @@ def build_dashboard_figure(
     seen_legend_names: set[str] = set()
 
     for idx, spec in enumerate(plots, start=1):
-        plot_title = spec.title or f"Plot {idx}"
+        plot_title = spec.title or t("Plot {index}", index=idx)
         child_fig, warnings = render_plot_from_spec(dash_plot_df, spec, available_cols)
         warnings_by_plot.append((plot_title, warnings))
         if child_fig is None:

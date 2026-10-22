@@ -11,6 +11,7 @@ from typing import Any
 
 import pandas as pd
 
+from eyeboard.i18n import t
 from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
 from eyeboard.services.csv_reading import read_csv_bytes
 from eyeboard.services.date_parsing import parse_dates_with_order
@@ -123,9 +124,10 @@ def summarize_date_parsing(
 
     warning = None
     if success_count / candidate_count < DATE_PARSE_WARNING_THRESHOLD:
-        warning = (
-            f"Only {success_count:,} of {candidate_count:,} non-empty date values "
-            "parsed successfully."
+        warning = t(
+            "Only {parsed:,} of {total:,} non-empty date values parsed successfully.",
+            parsed=success_count,
+            total=candidate_count,
         )
     return success_count, candidate_count, warning
 

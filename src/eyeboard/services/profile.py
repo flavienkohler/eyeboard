@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_datetime64_any_dtype, is_numeric_dtype
 
+from eyeboard.i18n import t
 from eyeboard.services.numeric import coerce_numeric
 
 
@@ -54,20 +55,24 @@ def profile_column(name: str, series: pd.Series) -> ColumnProfile:
                     f"'{text}'" for text in conversion.invalid_examples
                 )
                 checks.append(
-                    f"{conversion.invalid_count:,} value(s) are not numbers ({examples})"
+                    t(
+                        "{count:,} value(s) are not numbers ({examples})",
+                        count=conversion.invalid_count,
+                        examples=examples,
+                    )
                 )
         else:
             kind = "text"
         if conversion.looks_like_decimal_comma:
             decimal_comma = True
-            checks.append("numbers with a decimal comma: set Decimal to Comma")
+            checks.append(t("numbers with a decimal comma: set Decimal to Comma"))
 
     missing = int(series.isna().sum())
     distinct = int(series.nunique(dropna=True))
     if missing == len(series) and len(series):
-        checks.append("empty")
+        checks.append(t("empty"))
     elif distinct == 1:
-        checks.append("constant")
+        checks.append(t("constant"))
 
     minimum, maximum = _range(numbers, kind)
     return ColumnProfile(

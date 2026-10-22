@@ -7,12 +7,22 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from eyeboard.dashboards.model import PlotSpec
+from eyeboard.i18n import t
 from eyeboard.plotting.builder import make_figure
 from eyeboard.plotting.frame import prepare_plot_frame
 from eyeboard.services.columns import resolve_column
 
 LOGGER = logging.getLogger(__name__)
 COLUMN_PREVIEW_MAX_POINTS = 300
+
+
+def is_info_note(note: str) -> bool:
+    """Whether a note of ``render_plot_from_spec`` is information, not a problem.
+
+    Column matches ("Matched X column ...") all begin with the same word, in
+    every language, so they are told apart from the real problems by it.
+    """
+    return note.startswith(t("Matched "))
 
 
 def render_plot_from_spec(
@@ -26,10 +36,18 @@ def render_plot_from_spec(
     x_requested = spec.x_col
     x_col = resolve_column(x_requested, available_cols) if x_requested else None
     if not x_col:
-        resolution_warnings.append(f"Missing X column: '{x_requested}'")
+        resolution_warnings.append(
+            t("Missing X column: '{column}'", column=x_requested)
+        )
         return None, resolution_warnings
     if x_requested and x_col != x_requested:
-        resolution_warnings.append(f"Matched X column '{x_requested}' -> '{x_col}'")
+        resolution_warnings.append(
+            t(
+                "Matched X column '{requested}' -> '{found}'",
+                requested=x_requested,
+                found=x_col,
+            )
+        )
 
     y_cols: list[str] = []
     for requested_col in spec.y_cols:
@@ -38,10 +56,16 @@ def render_plot_from_spec(
             y_cols.append(resolved)
             if resolved != requested_col:
                 resolution_warnings.append(
-                    f"Matched Y column '{requested_col}' -> '{resolved}'"
+                    t(
+                        "Matched Y column '{requested}' -> '{found}'",
+                        requested=requested_col,
+                        found=resolved,
+                    )
                 )
         else:
-            resolution_warnings.append(f"Missing Y column: '{requested_col}'")
+            resolution_warnings.append(
+                t("Missing Y column: '{column}'", column=requested_col)
+            )
 
     y2_cols: list[str] = []
     for requested_col in spec.y2_cols:
@@ -50,13 +74,19 @@ def render_plot_from_spec(
             y2_cols.append(resolved)
             if resolved != requested_col:
                 resolution_warnings.append(
-                    f"Matched Y2 column '{requested_col}' -> '{resolved}'"
+                    t(
+                        "Matched Y2 column '{requested}' -> '{found}'",
+                        requested=requested_col,
+                        found=resolved,
+                    )
                 )
         else:
-            resolution_warnings.append(f"Missing Y2 column: '{requested_col}'")
+            resolution_warnings.append(
+                t("Missing Y2 column: '{column}'", column=requested_col)
+            )
 
     if not y_cols and not y2_cols:
-        resolution_warnings.append("No Y columns could be resolved.")
+        resolution_warnings.append(t("No Y columns could be resolved."))
         return None, resolution_warnings
 
     color_requested = spec.color_col
@@ -64,7 +94,9 @@ def render_plot_from_spec(
         resolve_column(color_requested, available_cols) if color_requested else None
     )
     if color_requested and not color_col:
-        resolution_warnings.append(f"Missing color column: '{color_requested}'")
+        resolution_warnings.append(
+            t("Missing color column: '{column}'", column=color_requested)
+        )
 
     # model_copy skips validation on purpose: these are the dataset's column names.
     resolved_spec = spec.model_copy(

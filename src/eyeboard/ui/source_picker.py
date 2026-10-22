@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from eyeboard.i18n import t
 from eyeboard.services.dataset import DataSource, source_from_path, source_from_upload
 from eyeboard.services.demo import DEMO_LABELS, demo_source
 from eyeboard.services.recent_csvs import (
@@ -35,13 +36,13 @@ def render_source_picker(label: str, key: str) -> DataSource | None:
 
     def describe(value: str | None) -> str:
         if value is None:
-            return "Choose a recent file or a demo file"
+            return t("Choose a recent file or a demo file")
         if value in demo:
             return demo[value]
-        return recent[value].get("filename", "Unnamed CSV")
+        return recent[value].get("filename", t("Unnamed CSV"))
 
     chosen = st.selectbox(
-        f"File for {label}",
+        t("File for {label}", label=label),
         [None, *recent, *demo],
         format_func=describe,
         key=f"{key}_recent",
@@ -53,9 +54,11 @@ def render_source_picker(label: str, key: str) -> DataSource | None:
         source = source_for_recent(chosen)
         if source is not None:
             return source
-        st.warning("This recent file is no longer available.")
+        st.warning(t("This recent file is no longer available."))
 
     uploaded = st.file_uploader(
-        f"or upload a file for {label}", type=["csv"], key=f"{key}_upload"
+        t("or upload a file for {label}", label=label),
+        type=["csv"],
+        key=f"{key}_upload",
     )
     return source_from_upload(uploaded) if uploaded is not None else None

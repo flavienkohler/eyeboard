@@ -64,6 +64,9 @@ class AppState:
     last_uploaded_csv_signature = StateKey[str | None](lambda: None)
     remembered_upload_key = StateKey[str | None](lambda: None)
 
+    # Interface language: a key of ``eyeboard.i18n.LANGUAGES`` (also a widget key).
+    language = StateKey[str](lambda: "en")
+
     # Date settings (also the keys of the sidebar widgets).
     date_settings_source = StateKey[str | None](lambda: None)
     read_date_col = StateKey[str | None](lambda: None)

@@ -311,6 +311,27 @@ def test_export_files_are_prepared_only_when_asked_for(workdir):
     assert "Chart (HTML)" in labels and "Plotted data (CSV)" in labels
 
 
+def test_switching_to_french_translates_the_page_and_keeps_the_choices(workdir):
+    at = _run(select_recent=True)
+    next(s for s in at.sidebar.selectbox if s.key == "read_sep").select("Semicolon (;)")
+    at.run()
+
+    next(s for s in at.sidebar.selectbox if s.key == "language").select("fr").run()
+
+    assert not at.exception and not at.error
+    assert [tab.label for tab in at.tabs][:3] == [
+        "Explorer",
+        "Tracer",
+        "Tableaux de bord",
+    ]
+    metrics = {m.label: m.value for m in at.metric}
+    assert metrics["Séparateur"] == "Point-virgule (;)"  # chosen, not detected
+    assert metrics["Ordre des dates"] == "jour en premier (auto)"
+    separator = next(s for s in at.sidebar.selectbox if s.key == "read_sep")
+    assert separator.value == "Semicolon (;)"  # the choice survived the new label
+    assert any("virgule décimale" in w.value for w in at.warning)
+
+
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):
     at = _run(select_recent=True)
 

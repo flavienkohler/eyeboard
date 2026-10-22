@@ -3,6 +3,7 @@
 import streamlit as st
 
 from eyeboard.dashboards.model import PlotSpec, new_id
+from eyeboard.i18n import t
 from eyeboard.services.dashboards import add_plot_to_dashboards
 from eyeboard.state import remember_recent_dashboard
 from eyeboard.ui.context import MainDatasetContext, dataset_fingerprint
@@ -31,7 +32,7 @@ def render_plot_tab(dataset: MainDatasetContext) -> None:
 
 def render_save_section(spec: PlotSpec | None) -> None:
     """Choose a dashboard (or a new one) and save the plot into it."""
-    st.markdown("##### Save to dashboard")
+    st.markdown(t("##### Save to dashboard"))
     by_id = {d.id: d for d in sorted(state.dashboards, key=lambda d: d.name.lower())}
     options = [NEW_DASHBOARD, *by_id]
     # Right after a save the new dashboard is the natural target of the next one.
@@ -41,25 +42,27 @@ def render_save_section(spec: PlotSpec | None) -> None:
         else 0
     )
     target = st.selectbox(
-        "Save into",
+        t("Save into"),
         options,
         index=index,
         format_func=lambda value: (
-            "New dashboard" if value is NEW_DASHBOARD else by_id[value].name
+            t("New dashboard") if value is NEW_DASHBOARD else by_id[value].name
         ),
     )
     if target is NEW_DASHBOARD:
         name = st.text_input(
-            "Dashboard name",
-            placeholder="e.g. Discharge dashboard",
-            help="A name that already exists adds the plot to that dashboard.",
+            t("Dashboard name"),
+            placeholder=t("e.g. Discharge dashboard"),
+            help=t("A name that already exists adds the plot to that dashboard."),
         )
     else:
         name = by_id[target].name
-    label = st.text_input("Plot label (optional)", placeholder="e.g. Q (m3/s) vs time")
+    label = st.text_input(
+        t("Plot label (optional)"), placeholder=t("e.g. Q (m3/s) vs time")
+    )
 
     disabled = spec is None or not name.strip()
-    if st.button("Save to dashboard", width="stretch", disabled=disabled):
+    if st.button(t("Save to dashboard"), width="stretch", disabled=disabled):
         save_plot(spec, name.strip(), label.strip())
 
 
@@ -75,8 +78,8 @@ def save_plot(spec: PlotSpec | None, name: str, label: str) -> None:
     state.plot_save_target = target.id
     remember_recent_dashboard(state, target.id)
     st.toast(
-        f"Dashboard '{target.name}' created."
+        t("Dashboard '{name}' created.", name=target.name)
         if created
-        else f"Plot added to '{target.name}'."
+        else t("Plot added to '{name}'.", name=target.name)
     )
     st.rerun()

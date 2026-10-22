@@ -7,6 +7,7 @@ import streamlit as st
 
 from eyeboard.dashboards.document import parse_single_dashboard
 from eyeboard.dashboards.model import Dashboard, PlotSpec, new_id
+from eyeboard.i18n import t
 from eyeboard.services.columns import normalize_colname
 from eyeboard.services.dashboards import (
     move_dashboard_plot,
@@ -43,7 +44,9 @@ def render_manager(dataset: MainDatasetContext) -> None:
     """Render the dashboard management controls."""
     dashboards: list[Dashboard] = state.dashboards
     if not dashboards:
-        st.info("No dashboards saved yet. Save one from the Plot tab, or import one.")
+        st.info(
+            t("No dashboards saved yet. Save one from the Plot tab, or import one.")
+        )
         render_import(dashboards)
         return
 
@@ -55,7 +58,7 @@ def render_manager(dataset: MainDatasetContext) -> None:
         ids.index(state.active_dashboard_id) if state.active_dashboard_id in ids else 0
     )
     sel_id = st.selectbox(
-        "Dashboard",
+        t("Dashboard"),
         ids,
         index=index,
         format_func=lambda value: by_id[value].name,
@@ -74,30 +77,39 @@ def render_dashboard_actions(sel: Dashboard, dashboards: list[Dashboard]) -> Non
     """Rename, export and delete the selected dashboard."""
     c1, c2, c3 = st.columns(3, vertical_alignment="bottom")
     with c1:
-        new_name = st.text_input("Rename", value=sel.name).strip()
-        if st.button("Apply rename", width="stretch", disabled=not new_name):
+        new_name = st.text_input(t("Rename"), value=sel.name).strip()
+        if st.button(t("Apply rename"), width="stretch", disabled=not new_name):
             if name_is_taken(dashboards, new_name, ignore_id=sel.id):
-                st.error(f"A dashboard named '{new_name}' already exists.")
+                st.error(
+                    t(
+                        "A dashboard named '{new_name}' already exists.",
+                        new_name=new_name,
+                    )
+                )
             else:
                 renamed = sel.model_copy(update={"name": new_name})
                 persist_dashboards_with_feedback(
-                    _replace(dashboards, renamed), success_message="Renamed."
+                    _replace(dashboards, renamed), success_message=t("Renamed.")
                 )
     with c2:
         st.download_button(
-            "Export (JSON)",
+            t("Export (JSON)"),
             data=_dashboard_json(sel).encode("utf-8"),
             file_name=f"{normalize_colname(sel.name).replace(' ', '_') or 'dashboard'}.json",
             mime="application/json",
             width="stretch",
         )
     with c3:
-        with st.popover("Delete..."):
-            st.write(f"Delete **{escape_markdown(sel.name)}** and its plots?")
-            if st.button("Yes, delete", type="primary", key="confirm_delete_dashboard"):
+        with st.popover(t("Delete...")):
+            st.write(
+                t("Delete **{name}** and its plots?", name=escape_markdown(sel.name))
+            )
+            if st.button(
+                t("Yes, delete"), type="primary", key="confirm_delete_dashboard"
+            ):
                 remaining = [d for d in dashboards if d.id != sel.id]
                 if persist_dashboards_with_feedback(
-                    remaining, success_message="Deleted."
+                    remaining, success_message=t("Deleted.")
                 ):
                     state.active_dashboard_id = None
                     state.editing_plot_id = None
@@ -107,43 +119,45 @@ def render_dashboard_actions(sel: Dashboard, dashboards: list[Dashboard]) -> Non
 def _plot_summary(plot: PlotSpec) -> str:
     """One line describing a plot in the list."""
     series = len(plot.y_cols) + len(plot.y2_cols)
-    return f"**{escape_markdown(plot.title or 'Untitled')}**  \n{plot.plot_type}, {series} series"
+    title = escape_markdown(plot.title or t("Untitled"))
+    detail = t("{type}, {count} series", type=t(plot.plot_type), count=series)
+    return f"**{title}**  \n{detail}"
 
 
 def render_plot_list(
     sel: Dashboard, dashboards: list[Dashboard], dataset: MainDatasetContext
 ) -> None:
     """List the plots of the dashboard with move, edit and remove buttons."""
-    st.markdown("##### Plots")
+    st.markdown(t("##### Plots"))
     last = len(sel.plots) - 1
     for position, plot in enumerate(sel.plots):
         info, up, down, edit, remove = st.columns(
             [4, 0.7, 0.7, 1, 1.3], vertical_alignment="center"
         )
         info.markdown(_plot_summary(plot))
-        if up.button("Up", key=f"up_{plot.id}", disabled=position == 0):
+        if up.button(t("Up"), key=f"up_{plot.id}", disabled=position == 0):
             persist_dashboards_with_feedback(
                 _replace(dashboards, move_dashboard_plot(sel, plot.id, -1))
             )
             st.rerun()
-        if down.button("Down", key=f"down_{plot.id}", disabled=position == last):
+        if down.button(t("Down"), key=f"down_{plot.id}", disabled=position == last):
             persist_dashboards_with_feedback(
                 _replace(dashboards, move_dashboard_plot(sel, plot.id, +1))
             )
             st.rerun()
-        if edit.button("Edit", key=f"edit_{plot.id}"):
+        if edit.button(t("Edit"), key=f"edit_{plot.id}"):
             state.editing_plot_id = plot.id
             st.rerun()
-        with remove.popover("Remove", disabled=len(sel.plots) <= 1):
-            st.write("Remove this plot from the dashboard?")
-            if st.button("Yes, remove", type="primary", key=f"confirm_rm_{plot.id}"):
+        with remove.popover(t("Remove"), disabled=len(sel.plots) <= 1):
+            st.write(t("Remove this plot from the dashboard?"))
+            if st.button(t("Yes, remove"), type="primary", key=f"confirm_rm_{plot.id}"):
                 updated = remove_dashboard_plot(sel, plot.id)
                 if persist_dashboards_with_feedback(_replace(dashboards, updated)):
                     if state.editing_plot_id == plot.id:
                         state.editing_plot_id = None
                     st.rerun()
     if len(sel.plots) <= 1:
-        st.caption("A dashboard must keep at least one plot.")
+        st.caption(t("A dashboard must keep at least one plot."))
 
     editing = next((p for p in sel.plots if p.id == state.editing_plot_id), None)
     if editing is not None:
@@ -158,7 +172,12 @@ def render_plot_editor(
 ) -> None:
     """Edit one plot with the same form as the Plot tab, started from the saved plot."""
     with st.container(border=True):
-        st.markdown(f"##### Editing: {escape_markdown(plot.title or 'Untitled')}")
+        st.markdown(
+            t(
+                "##### Editing: {title}",
+                title=escape_markdown(plot.title or t("Untitled")),
+            )
+        )
         prefix = f"edit_{plot.id}_{dataset_fingerprint(dataset)}"
         choices = render_plot_form(
             dataset, initial=plot, key_prefix=prefix, date_filter=False
@@ -166,44 +185,53 @@ def render_plot_editor(
         edited = render_preview(choices, f"{prefix}_preview")
 
         save, close = st.columns(2)
-        if save.button("Save plot changes", width="stretch", disabled=edited is None):
+        if save.button(
+            t("Save plot changes"), width="stretch", disabled=edited is None
+        ):
             edited = edited.model_copy(update={"id": plot.id})
             updated = update_dashboard_plot(sel, plot.id, edited)
             if persist_dashboards_with_feedback(
-                _replace(dashboards, updated), success_message="Plot updated."
+                _replace(dashboards, updated), success_message=t("Plot updated.")
             ):
                 st.rerun()
-        if close.button("Close editor", width="stretch"):
+        if close.button(t("Close editor"), width="stretch"):
             state.editing_plot_id = None
             st.rerun()
 
 
 def render_json_editor(sel: Dashboard, dashboards: list[Dashboard]) -> None:
     """Render the advanced JSON editor of the selected dashboard."""
-    with st.expander("Edit dashboard JSON (advanced)", expanded=False):
-        edited = st.text_area("Dashboard JSON", value=_dashboard_json(sel), height=380)
+    with st.expander(t("Edit dashboard JSON (advanced)"), expanded=False):
+        edited = st.text_area(
+            t("Dashboard JSON"), value=_dashboard_json(sel), height=380
+        )
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("Validate JSON", width="stretch"):
+            if st.button(t("Validate JSON"), width="stretch"):
                 _, problems = _parse_editor_text(edited, sel.id)
                 if problems:
-                    _show_problems("This JSON is not a valid dashboard.", problems)
+                    _show_problems(t("This JSON is not a valid dashboard."), problems)
                 else:
-                    st.success("Valid dashboard JSON.")
+                    st.success(t("Valid dashboard JSON."))
         with col_b:
-            if st.button("Save JSON to dashboard", width="stretch"):
+            if st.button(t("Save JSON to dashboard"), width="stretch"):
                 updated, problems = _parse_editor_text(edited, sel.id)
                 if updated is None:
-                    _show_problems("Could not save this JSON.", problems)
+                    _show_problems(t("Could not save this JSON."), problems)
                 elif updated.id != sel.id and any(
                     d.id == updated.id for d in dashboards
                 ):
-                    st.error("This id already belongs to another dashboard.")
+                    st.error(t("This id already belongs to another dashboard."))
                 elif name_is_taken(dashboards, updated.name, ignore_id=sel.id):
-                    st.error(f"A dashboard named '{updated.name}' already exists.")
+                    st.error(
+                        t(
+                            "A dashboard named '{name}' already exists.",
+                            name=updated.name,
+                        )
+                    )
                 elif persist_dashboards_with_feedback(
                     [updated if d.id == sel.id else d for d in dashboards],
-                    success_message="Dashboard updated.",
+                    success_message=t("Dashboard updated."),
                 ):
                     st.rerun()
 
@@ -215,7 +243,7 @@ def _parse_editor_text(
     try:
         raw = json.loads(text)
     except json.JSONDecodeError as exc:
-        return None, [f"Invalid JSON: {exc}"]
+        return None, [t("Invalid JSON: {error}", error=exc)]
     if isinstance(raw, dict):
         raw.setdefault("id", default_id)
     return parse_single_dashboard(raw)
@@ -223,9 +251,9 @@ def _parse_editor_text(
 
 def render_import(dashboards: list[Dashboard]) -> None:
     """Render the dashboard import control."""
-    with st.expander("Import a dashboard (JSON)", expanded=False):
+    with st.expander(t("Import a dashboard (JSON)"), expanded=False):
         upl = st.file_uploader(
-            "Dashboard file (.json)", type=["json"], key="import_json"
+            t("Dashboard file (.json)"), type=["json"], key="import_json"
         )
         if upl is None:
             return
@@ -238,11 +266,13 @@ def render_import(dashboards: list[Dashboard]) -> None:
         try:
             raw = json.loads(content.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            st.error(f"Import failed, the file is not valid JSON: {exc}")
+            st.error(t("Import failed, the file is not valid JSON: {exc}", exc=exc))
             return
         imported, problems = parse_single_dashboard(raw)
         if imported is None:
-            _show_problems("Imported dashboard could not be read correctly.", problems)
+            _show_problems(
+                t("Imported dashboard could not be read correctly."), problems
+            )
             return
         updates: dict[str, str] = {"name": unique_name(dashboards, imported.name)}
         if any(d.id == imported.id for d in dashboards):
@@ -251,7 +281,7 @@ def render_import(dashboards: list[Dashboard]) -> None:
         imported = imported.model_copy(update=updates)
         if persist_dashboards_with_feedback(
             [*dashboards, imported],
-            success_message=f"Imported as '{imported.name}'.",
+            success_message=t("Imported as '{name}'.", name=imported.name),
         ):
             state.last_imported_json_signature = signature
             st.rerun()

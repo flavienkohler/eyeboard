@@ -143,9 +143,11 @@ def parse_date_series_with_order(
     if best_parsed is None:
         return to_datetime_safely(series), "month first"
 
-    label = "day first" if best_dayfirst else "month first"
-    if inferred_dayfirst is None and abs(scores[0] - scores[1]) < 1e-9:
-        label += " (ambiguous)"
+    ambiguous = inferred_dayfirst is None and abs(scores[0] - scores[1]) < 1e-9
+    if best_dayfirst:
+        label = "day first (ambiguous)" if ambiguous else "day first"
+    else:
+        label = "month first (ambiguous)" if ambiguous else "month first"
     return best_parsed, label
 
 

@@ -30,6 +30,7 @@
 - Compare takes the loaded file as A and a second file as B, draws every plot of the chosen dashboards as an overlay or side by side, and gives RMSE, MAE, bias and correlation per series, lined up by timestamps or by elapsed time.
 - Added synthetic demo data (a "Try the demo data" button, and the files in `examples/`).
 - Charts can be exported as standalone HTML, plotted data and comparison metrics as CSV, and as PNG through the chart toolbar.
+- The interface can be switched to French (selector at the bottom of the sidebar). Texts go through a small translation table with English as the fallback, and tests check that the French table is complete.
 - Added a GitHub Actions workflow that runs ruff and the tests on Python 3.11 to 3.13.
 
 ## 0.2.0 - 2026-07-01

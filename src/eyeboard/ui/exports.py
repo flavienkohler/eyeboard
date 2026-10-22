@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from eyeboard.i18n import t
 from eyeboard.plotting.export import csv_bytes, file_stem, html_bytes
 
 
@@ -13,7 +14,7 @@ def render_downloads(
     name: str,
     fig: go.Figure | None = None,
     table: pd.DataFrame | None = None,
-    table_label: str = "Data (CSV)",
+    table_label: str | None = None,
 ) -> None:
     """Offer the chart as HTML and a table as CSV, built only when asked for.
 
@@ -21,16 +22,16 @@ def render_downloads(
     prepared only while the toggle is on, not on every rerun of the page.
     """
     if not st.toggle(
-        "Prepare export files",
+        t("Prepare export files"),
         key=toggle_key,
-        help="PNG: use the camera icon in the chart's toolbar.",
+        help=t("PNG: use the camera icon in the chart's toolbar."),
     ):
         return
     stem = file_stem(name)
     columns = st.columns(2)
     if fig is not None:
         columns[0].download_button(
-            "Chart (HTML)",
+            t("Chart (HTML)"),
             data=html_bytes(fig),
             file_name=f"{stem}.html",
             mime="text/html",
@@ -39,7 +40,7 @@ def render_downloads(
         )
     if table is not None and not table.empty:
         columns[1].download_button(
-            table_label,
+            table_label or t("Data (CSV)"),
             data=csv_bytes(table),
             file_name=f"{stem}.csv",
             mime="text/csv",

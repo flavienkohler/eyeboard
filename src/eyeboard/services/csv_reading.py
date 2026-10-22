@@ -9,6 +9,7 @@ import pandas as pd
 from pandas.api.types import is_object_dtype
 
 from eyeboard.config import CANDIDATE_SEPARATORS, ENCODING_OPTIONS
+from eyeboard.i18n import t
 from eyeboard.models import CsvReadReport
 
 LOGGER = logging.getLogger(__name__)
@@ -80,8 +81,9 @@ def _build_read_report(
     else:
         separator_label = "Comma (,) (assumed)"
         warnings.append(
-            "No separator could be detected; a comma was assumed. "
-            "Choose one in Reading options if the columns look wrong."
+            t(
+                "No separator could be detected; a comma was assumed. Choose one in Reading options if the columns look wrong."
+            )
         )
 
     return CsvReadReport(
@@ -155,7 +157,11 @@ def decode_csv_bytes(
         except UnicodeDecodeError:
             continue
         label = _encoding_label(fallback)
-        return text, label, [f"The file is not valid UTF-8; it was decoded as {label}."]
+        return (
+            text,
+            label,
+            [t("The file is not valid UTF-8; it was decoded as {label}.", label=label)],
+        )
 
     raise CsvReadError("The file could not be decoded.")  # pragma: no cover
 
@@ -245,7 +251,7 @@ def read_csv_bytes(
         ) from exc
 
     if not text.strip():
-        raise CsvReadError("The file is empty or has no columns to read.")
+        raise CsvReadError(t("The file is empty or has no columns to read."))
 
     inferred_sep = detect_separator_from_sample(text[:SNIFF_CHARS], decimal=decimal)
     # Single-column files have no separator to detect; a comma is then harmless.
@@ -261,11 +267,13 @@ def read_csv_bytes(
             engine="c",
         )
     except pd.errors.EmptyDataError as exc:
-        raise CsvReadError("The file is empty or has no columns to read.") from exc
+        raise CsvReadError(t("The file is empty or has no columns to read.")) from exc
     except (pd.errors.ParserError, ValueError) as exc:
         raise CsvReadError(
-            "The file could not be parsed with the current separator, header or "
-            f"decimal settings. Details: {exc}"
+            t(
+                "The file could not be parsed with the current separator, header or decimal settings. Details: {details}",
+                details=exc,
+            )
         ) from exc
 
     cleaned = flatten_columns(df)
@@ -274,11 +282,14 @@ def read_csv_bytes(
     cleaned = strip_object_columns(cleaned)
 
     if dropped_count:
-        warnings.append(f"Dropped {dropped_count} empty column(s).")
+        warnings.append(t("Dropped {count} empty column(s).", count=dropped_count))
     renamed = find_renamed_duplicates(list(cleaned.columns))
     if renamed:
         warnings.append(
-            "Duplicate column names were renamed: " + ", ".join(sorted(renamed)) + "."
+            t(
+                "Duplicate column names were renamed: {names}.",
+                names=", ".join(sorted(renamed)),
+            )
         )
 
     report = _build_read_report(

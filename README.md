@@ -20,7 +20,7 @@ Supported: Python 3.11 to 3.13.
 
 ## What it does
 
-The sidebar is for data only: upload a file or pick a recent one, adjust the reading options, and see a card with the file that is loaded. The work happens in four tabs.
+The sidebar is for data only: upload a file or pick a recent one, adjust the reading options, and see a card with the file that is loaded. The interface is available in English and French (selector at the bottom of the sidebar). The work happens in four tabs.
 
 | Tab | What it is for |
 | --- | --- |
@@ -59,6 +59,7 @@ src/eyeboard/
   plotting/     from a plot specification and a table to a Plotly figure; overlay; export
   ui/           everything that draws: the sidebar, the four tabs, the shared plot form,
                 caches. The only layer that imports Streamlit (besides the launcher)
+  i18n.py       the translation helper; translations/ holds one table per language
   state.py      the application state, typed
 ```
 
@@ -67,6 +68,7 @@ A few choices worth knowing:
 - **Streamlit and Plotly.** Streamlit keeps the app a single Python codebase, which is the right size for a tool used by one person on their own files. The price is that the script reruns on every interaction, so loading, parsing and profiling are cached on a cheap key (the file identity and the options), and heavy output such as exports is built only on request.
 - **Logic out of the interface.** The rules that matter (what counts as a number, how B is lined up on A, where a plot is added) are plain functions with tests, not code inside widgets.
 - **Dashboards are data, not files.** A plot stores column names, not values. Columns are matched by normalized name when a dashboard is replayed, and the notes say what was matched or missing.
+- **Translations are a plain table.** The English text is the key (`t("Upload CSV")`), a Python dictionary gives the French, and a missing entry falls back to English. Tests check that every text of the code has a French entry with the same fields, and that no entry is left unused.
 - **Validated at the edge.** Saved dashboards, imported JSON and the JSON editor all go through the same pydantic models, with readable error messages.
 
 ## Development

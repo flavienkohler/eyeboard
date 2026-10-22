@@ -6,8 +6,9 @@ import pandas as pd
 import streamlit as st
 
 from eyeboard.dashboards.model import Dashboard, PlotSpec
+from eyeboard.i18n import t
 from eyeboard.plotting.export import png_config
-from eyeboard.plotting.figures import render_plot_from_spec
+from eyeboard.plotting.figures import is_info_note, render_plot_from_spec
 from eyeboard.plotting.overlay import overlay_figures
 from eyeboard.services.columns import resolve_column
 from eyeboard.services.comparison import (
@@ -43,12 +44,14 @@ class Side:
 def render_compare_tab(dataset: MainDatasetContext) -> None:
     """Render the comparison of the loaded file with a second one."""
     st.caption(
-        "A is the file loaded in the sidebar. Pick B here, then compare the plots of "
-        "your saved dashboards on both."
+        t(
+            "A is the file loaded in the sidebar. Pick B here, then compare the plots of "
+            "your saved dashboards on both."
+        )
     )
     source_b = render_source_picker("B", "compare_b")
     if source_b is None:
-        st.info("Choose the file B to compare with.")
+        st.info(t("Choose the file B to compare with."))
         return
     side_b = load_side_b(dataset, source_b)
     if side_b is None:
@@ -56,14 +59,20 @@ def render_compare_tab(dataset: MainDatasetContext) -> None:
     side_a = Side(dataset.label, dataset.df_parsed, dataset.date_col)
 
     st.caption(
-        f"A: `{escape_markdown(side_a.label)}` ({len(side_a.data):,} rows)  |  "
-        f"B: `{escape_markdown(side_b.label)}` ({len(side_b.data):,} rows). "
-        "B is read with the same separator and decimal as A."
+        t(
+            "A: `{name_a}` ({rows_a:,} rows)  |  B: `{name_b}` ({rows_b:,} rows). B is read with the same separator and decimal as A.",
+            name_a=escape_markdown(side_a.label),
+            rows_a=len(side_a.data),
+            name_b=escape_markdown(side_b.label),
+            rows_b=len(side_b.data),
+        )
     )
     if dataset.date_col and side_b.date_col is None:
         st.warning(
-            f"The date column '{dataset.date_col}' of A was not found in B, so the "
-            "date range cannot be shared. Plots whose x is a date may not line up."
+            t(
+                "The date column '{date_col}' of A was not found in B, so the date range cannot be shared. Plots whose x is a date may not line up.",
+                date_col=dataset.date_col,
+            )
         )
 
     dashboards = pick_dashboards()
@@ -80,7 +89,7 @@ def load_side_b(dataset: MainDatasetContext, source: DataSource) -> Side | None:
     """Read and date-parse the second file with the settings of the main one."""
     df, _, error = load_table_cached(source, dataset.read_options)
     if error:
-        st.error(f"Could not read the file B: {error}")
+        st.error(t("Could not read the file B: {error}", error=error))
         return None
     settings = dataset.date_settings
     column = (
@@ -95,19 +104,19 @@ def load_side_b(dataset: MainDatasetContext, source: DataSource) -> Side | None:
 def pick_dashboards() -> list[Dashboard]:
     """Choose the saved dashboards to compare; empty when there is nothing to show."""
     if not state.dashboards:
-        st.info("No saved dashboards yet. Create one in the **Plot** tab first.")
+        st.info(t("No saved dashboards yet. Create one in the **Plot** tab first."))
         return []
     ordered = sorted(state.dashboards, key=lambda d: d.name.lower())
     by_id = {d.id: d for d in ordered}
     active = state.active_dashboard_id
     chosen = st.multiselect(
-        "Dashboards to compare",
+        t("Dashboards to compare"),
         list(by_id),
         default=[active] if active in by_id else list(by_id)[:1],
         format_func=lambda value: by_id[value].name,
     )
     if not chosen:
-        st.info("Select at least one dashboard to compare.")
+        st.info(t("Select at least one dashboard to compare."))
     return [by_id[value] for value in chosen]
 
 
@@ -115,20 +124,24 @@ def render_options() -> tuple[str, Alignment]:
     """Choose how to show the files and how to line B up with A."""
     left, right = st.columns(2)
     mode = left.radio(
-        "Show",
+        t("Show"),
         [OVERLAY, SIDE_BY_SIDE],
+        format_func=t,
         horizontal=True,
         key="compare_mode",
-        help="Overlay draws B dashed over A. Side by side draws two charts.",
+        help=t("Overlay draws B dashed over A. Side by side draws two charts."),
     )
     choice = right.radio(
-        "Line B up with A by",
+        t("Line B up with A by"),
         [TIMESTAMPS, ELAPSED],
+        format_func=t,
         horizontal=True,
         key="compare_alignment",
         help=(
-            "Timestamps: the same moments. Elapsed time: each file counts from its "
-            "own start, to compare two runs begun at different times."
+            t(
+                "Timestamps: the same moments. Elapsed time: each file counts from its "
+                "own start, to compare two runs begun at different times."
+            )
         ),
     )
     return mode, "elapsed" if choice == ELAPSED else "timestamps"
@@ -141,12 +154,12 @@ def apply_shared_range(a: Side, b: Side, alignment: Alignment) -> tuple[Side, Si
     shared = overlap(a.data[a.date_col], b.data[b.date_col])
     if shared is None:
         if pd.api.types.is_datetime64_any_dtype(a.data[a.date_col]):
-            st.warning("The two files do not cover any common period.")
+            st.warning(t("The two files do not cover any common period."))
         return a, b
     low, high = (value.to_pydatetime() for value in shared)
-    with st.expander("Shared date range", expanded=False):
+    with st.expander(t("Shared date range"), expanded=False):
         start, end = st.slider(
-            "Limit both files to",
+            t("Limit both files to"),
             min_value=low,
             max_value=high,
             value=(low, high),
@@ -155,7 +168,7 @@ def apply_shared_range(a: Side, b: Side, alignment: Alignment) -> tuple[Side, Si
     inside_a = a.data[a.data[a.date_col].between(start, end)]
     inside_b = b.data[b.data[b.date_col].between(start, end)]
     if inside_a.empty or inside_b.empty:
-        st.warning("The shared date range leaves one of the files empty.")
+        st.warning(t("The shared date range leaves one of the files empty."))
     return replace(a, data=inside_a), replace(b, data=inside_b)
 
 
@@ -166,7 +179,9 @@ def render_dashboard_comparison(
     with st.container(border=True):
         st.markdown(f"#### {escape_markdown(dashboard.name)}")
         for index, spec in enumerate(dashboard.plots, start=1):
-            st.markdown(f"**{escape_markdown(spec.title or f'Plot {index}')}**")
+            st.markdown(
+                f"**{escape_markdown(spec.title or t('Plot {index}', index=index))}**"
+            )
             key = f"cmp_{dashboard.id}_{spec.id}"
             render_plot_comparison(spec, a, b, mode, alignment, key)
 
@@ -203,7 +218,7 @@ def render_plot_comparison(
             with column:
                 st.caption(f"{name} - {escape_markdown(side.label)}")
                 if fig is None:
-                    st.error(f"This plot could not be drawn for {name}.")
+                    st.error(t("This plot could not be drawn for {name}.", name=name))
                 else:
                     st.plotly_chart(
                         fig,
@@ -220,7 +235,7 @@ def render_plot_comparison(
         name=f"{title}_comparison",
         fig=overlay,
         table=table,
-        table_label="Metrics (CSV)",
+        table_label=t("Metrics (CSV)"),
     )
 
 
@@ -229,10 +244,10 @@ def render_notes(warnings_a: list[str], warnings_b: list[str]) -> None:
     notes = [("A", w) for w in warnings_a] + [("B", w) for w in warnings_b]
     if not notes:
         return
-    with st.expander(f"Notes ({len(notes)})", expanded=False):
+    with st.expander(t("Notes ({count})", count=len(notes)), expanded=False):
         for name, warning in notes:
             text = f"{name}: {warning}"
-            (st.info if warning.startswith("Matched ") else st.warning)(text)
+            (st.info if is_info_note(warning) else st.warning)(text)
 
 
 def metrics_frame(result: PlotComparison) -> pd.DataFrame | None:
@@ -241,12 +256,12 @@ def metrics_frame(result: PlotComparison) -> pd.DataFrame | None:
         return None
     return pd.DataFrame(
         {
-            "series": [name for name, _ in result.rows],
-            "points": [r.points for _, r in result.rows],
+            t("series"): [name for name, _ in result.rows],
+            t("points"): [r.points for _, r in result.rows],
             "RMSE": [r.rmse for _, r in result.rows],
             "MAE": [r.mae for _, r in result.rows],
-            "bias (B - A)": [r.bias for _, r in result.rows],
-            "correlation": [r.correlation for _, r in result.rows],
+            t("bias (B - A)"): [r.bias for _, r in result.rows],
+            t("correlation"): [r.correlation for _, r in result.rows],
         }
     )
 
@@ -260,7 +275,7 @@ def render_metrics(table: pd.DataFrame | None, notes: list[str]) -> None:
             width="stretch",
             column_config={
                 name: st.column_config.NumberColumn(format="%.4g")
-                for name in ("RMSE", "MAE", "bias (B - A)", "correlation")
+                for name in ("RMSE", "MAE", t("bias (B - A)"), t("correlation"))
             },
         )
     for note in notes:

@@ -3,11 +3,8 @@
 import pandas as pd
 
 from eyeboard.dashboards.model import PlotSpec
+from eyeboard.i18n import t
 from eyeboard.services.numeric import NumericConversion, coerce_numeric
-
-_DECIMAL_COMMA_HINT = (
-    " The values look like decimal commas: set Decimal to Comma in Reading options."
-)
 
 
 def _unique(values: list[str]) -> list[str]:
@@ -17,17 +14,31 @@ def _unique(values: list[str]) -> list[str]:
 
 def _describe_conversion(column: str, info: NumericConversion) -> str | None:
     """Turn a conversion outcome into a message for the user, if one is needed."""
-    hint = _DECIMAL_COMMA_HINT if info.looks_like_decimal_comma else ""
+    hint = (
+        t(
+            " The values look like decimal commas: set Decimal to Comma in Reading options."
+        )
+        if info.looks_like_decimal_comma
+        else ""
+    )
     if not info.is_numeric:
         return (
-            f"Column '{column}' is not numeric; it is plotted as text categories."
+            t(
+                "Column '{column}' is not numeric; it is plotted as text categories.",
+                column=column,
+            )
             + hint
         )
     if info.invalid_count:
         examples = ", ".join(f"'{value}'" for value in info.invalid_examples)
         return (
-            f"Column '{column}': {info.invalid_count:,} value(s) could not be read as "
-            f"numbers and were ignored (e.g. {examples})." + hint
+            t(
+                "Column '{column}': {count:,} value(s) could not be read as numbers and were ignored (e.g. {examples}).",
+                column=column,
+                count=info.invalid_count,
+                examples=examples,
+            )
+            + hint
         )
     return None
 
@@ -69,7 +80,10 @@ def prepare_plot_frame(
     for column in series_cols:
         if column not in numeric_cols:
             warnings.append(
-                f"Column '{column}' is not numeric and cannot be aggregated; it was left out."
+                t(
+                    "Column '{column}' is not numeric and cannot be aggregated; it was left out.",
+                    column=column,
+                )
             )
     adjusted = spec.model_copy(
         update={
@@ -78,7 +92,7 @@ def prepare_plot_frame(
         }
     )
     if not numeric_cols:
-        warnings.append("No numeric Y column is left to aggregate.")
+        warnings.append(t("No numeric Y column is left to aggregate."))
         return plot_df, adjusted, warnings
 
     keys = _unique([c for c in [x_col, color_col] if c])

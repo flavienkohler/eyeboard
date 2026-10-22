@@ -17,8 +17,9 @@ from pydantic import ValidationError
 from eyeboard.config import DEFAULT_SERIES_COLORS, PLOT_TYPES, THEMES
 from eyeboard.dashboards.document import describe_validation_error
 from eyeboard.dashboards.model import AGGREGATIONS, DASH_STYLES, PlotSpec, SeriesStyle
+from eyeboard.i18n import t
 from eyeboard.plotting.export import png_config
-from eyeboard.plotting.figures import render_plot_from_spec
+from eyeboard.plotting.figures import is_info_note, render_plot_from_spec
 from eyeboard.plotting.specs import build_plot_spec_from_builder
 from eyeboard.services.columns import normalize_colname
 from eyeboard.ui.context import MainDatasetContext
@@ -68,7 +69,7 @@ def render_plot_form(
     def key(name: str) -> str:
         return f"{key_prefix}_{name}"
 
-    st.markdown("##### Data and axes")
+    st.markdown(t("##### Data and axes"))
     data = (
         render_date_filter(dataset, key("dates")) if date_filter else dataset.df_parsed
     )
@@ -77,7 +78,7 @@ def render_plot_form(
     if x_default is None:
         x_default = dataset.date_col if dataset.date_col in cols else cols[0]
     x_col = st.selectbox(
-        "X axis", options=cols, index=cols.index(x_default), key=key("x")
+        t("X axis"), options=cols, index=cols.index(x_default), key=key("x")
     )
 
     if initial:
@@ -88,11 +89,12 @@ def render_plot_form(
         ]
         y_default = (numeric or cols)[:1]
     y_cols = st.multiselect(
-        "Y axis (primary)", options=cols, default=y_default, key=key("y")
+        t("Y axis (primary)"), options=cols, default=y_default, key=key("y")
     )
     plot_type = st.radio(
-        "Type",
+        t("Type"),
         options=PLOT_TYPES,
+        format_func=t,
         horizontal=True,
         index=PLOT_TYPES.index(start.plot_type),
         key=key("type"),
@@ -100,53 +102,54 @@ def render_plot_form(
 
     y2_default = [col for col in _keep(start.y2_cols, cols) if col not in y_cols]
     enable_y2 = st.toggle(
-        "Secondary Y axis", value=bool(y2_default), key=key("enable_y2")
+        t("Secondary Y axis"), value=bool(y2_default), key=key("enable_y2")
     )
     y2_cols: list[str] = []
     if enable_y2:
         y2_cols = st.multiselect(
-            "Y axis (secondary)",
+            t("Y axis (secondary)"),
             options=[col for col in cols if col not in y_cols],
             default=y2_default,
             key=key("y2"),
         )
     color_options = [None, *cols]
     color_col = st.selectbox(
-        "Color/group by (optional)",
+        t("Color/group by (optional)"),
         color_options,
         index=color_options.index(start.color_col)
         if start.color_col in color_options
         else 0,
         key=key("color"),
     )
-    with st.expander("Aggregation (for a categorical X)"):
+    with st.expander(t("Aggregation (for a categorical X)")):
         agg_options = [None, *AGGREGATIONS]
         agg = st.selectbox(
-            "Aggregate Y by X",
+            t("Aggregate Y by X"),
             agg_options,
+            format_func=lambda value: t("none") if value is None else t(value),
             index=agg_options.index(start.agg),
             key=key("agg"),
         )
-        st.caption("Useful when X is categorical with many rows per category.")
+        st.caption(t("Useful when X is categorical with many rows per category."))
 
-    with st.expander("Titles and theme"):
+    with st.expander(t("Titles and theme")):
         theme = st.selectbox(
-            "Theme",
+            t("Theme"),
             THEMES,
             index=THEMES.index(start.theme if initial else DEFAULT_THEME),
             key=key("theme"),
         )
         title = st.text_input(
-            "Plot title (optional)", value=start.title or "", key=key("title")
+            t("Plot title (optional)"), value=start.title or "", key=key("title")
         )
         yaxis_title_1 = st.text_input(
-            "Y1 axis title (optional)",
+            t("Y1 axis title (optional)"),
             value=start.yaxis_title_1 or "",
             key=key("ytitle1"),
         )
         yaxis_title_2 = (
             st.text_input(
-                "Y2 axis title (optional)",
+                t("Y2 axis title (optional)"),
                 value=start.yaxis_title_2 or "",
                 key=key("ytitle2"),
             )
@@ -183,32 +186,34 @@ def render_date_filter(dataset: MainDatasetContext, key: str) -> pd.DataFrame:
 
     first, last = dates.min().to_pydatetime(), dates.max().to_pydatetime()
     start, end = st.slider(
-        "Date range", min_value=first, max_value=last, value=(first, last), key=key
+        t("Date range"), min_value=first, max_value=last, value=(first, last), key=key
     )
     inside = dataset.df_parsed[(dates >= start) & (dates <= end)]
     if inside.empty:
-        st.warning("The date range leaves no rows to plot.")
+        st.warning(t("The date range leaves no rows to plot."))
     return inside
 
 
 def render_series_styling(
     y_cols: list[str], y2_cols: list[str], start: PlotSpec, key_prefix: str
 ) -> dict[str, dict[str, Any]]:
-    """Render per-series colour, width and dash; return them only when customized.
+    """Render per-series color, width and dash; return them only when customized.
 
     The widgets always exist, so switching "Customize" off and on again does not
     lose what was set; only a switched-on customisation is saved with the plot.
     """
     series_list = list(dict.fromkeys([*y_cols, *y2_cols]))
-    with st.expander("Series colours and lines", expanded=bool(start.series_style)):
+    with st.expander(t("Series colors and lines"), expanded=bool(start.series_style)):
         customize = st.toggle(
-            "Customize series",
+            t("Customize series"),
             value=bool(start.series_style),
             key=f"{key_prefix}_customize",
-            help="Off: the theme's colours are used and nothing is saved with the plot.",
+            help=t(
+                "Off: the theme's colors are used and nothing is saved with the plot."
+            ),
         )
         if not series_list:
-            st.info("Select Y columns to customize them.")
+            st.info(t("Select Y columns to customize them."))
         style_map: dict[str, dict[str, Any]] = {}
         for idx, series_name in enumerate(series_list):
             saved = start.series_style.get(series_name) or SeriesStyle()
@@ -217,7 +222,7 @@ def render_series_styling(
             st.markdown(f"**{escape_markdown(series_name)}**")
             c1, c2, c3 = st.columns([1.2, 1, 1])
             color = c1.color_picker(
-                "Color",
+                t("Color"),
                 value=saved.color
                 or DEFAULT_SERIES_COLORS[idx % len(DEFAULT_SERIES_COLORS)],
                 key=f"{prefix}_color",
@@ -225,7 +230,7 @@ def render_series_styling(
                 disabled=not customize,
             )
             width = c2.slider(
-                "Width",
+                t("Width"),
                 1,
                 8,
                 int(saved.width or 2),
@@ -234,8 +239,9 @@ def render_series_styling(
                 disabled=not customize,
             )
             dash = c3.selectbox(
-                "Style",
+                t("Style"),
                 DASH_STYLES,
+                format_func=t,
                 index=DASH_STYLES.index(saved.dash or "solid"),
                 key=f"{prefix}_dash",
                 label_visibility="collapsed",
@@ -275,12 +281,12 @@ def render_preview(
     With ``export_key``, download buttons for the chart and its data follow it.
     """
     if not choices.y_cols and not choices.y2_cols:
-        st.info("Pick an X column and at least one Y column.")
+        st.info(t("Pick an X column and at least one Y column."))
         return None
 
     spec, problems = build_spec(choices)
     if spec is None:
-        st.error("These settings do not make a valid plot.")
+        st.error(t("These settings do not make a valid plot."))
         for line in problems:
             st.warning(escape_markdown(line))
         return None
@@ -291,13 +297,13 @@ def render_preview(
         )
     except Exception as exc:  # UI boundary: show the problem, keep the traceback
         LOGGER.exception("Plot generation failed.")
-        st.error(f"Error generating plot: {exc}")
+        st.error(t("Error generating plot: {exc}", exc=exc))
         return None
 
     if warnings:
-        with st.expander("Warnings"):
+        with st.expander(t("Warnings")):
             for warning in warnings:
-                (st.info if warning.startswith("Matched ") else st.warning)(warning)
+                (st.info if is_info_note(warning) else st.warning)(warning)
     if fig is None:
         return None
     name = spec.title or "plot"
@@ -310,6 +316,6 @@ def render_preview(
             name=name,
             fig=fig,
             table=choices.data[columns],
-            table_label="Plotted data (CSV)",
+            table_label=t("Plotted data (CSV)"),
         )
     return spec

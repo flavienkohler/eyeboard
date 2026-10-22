@@ -114,3 +114,26 @@ def remove_dashboard_plot(dashboard: Dashboard, plot_id: str) -> Dashboard:
     return dashboard.model_copy(
         update={"plots": [plot for plot in dashboard.plots if plot.id != plot_id]}
     )
+
+
+def add_plot_to_dashboards(
+    dashboards: list[Dashboard],
+    name: str,
+    plot: PlotSpec,
+) -> tuple[list[Dashboard], Dashboard, bool]:
+    """Add a plot to the dashboard of that name, or create the dashboard.
+
+    The name is matched ignoring case and surrounding spaces. Returns the new
+    list, the dashboard that received the plot, and whether it was created.
+    """
+    existing = find_dashboard_by_name(dashboards, name)
+    if existing is None:
+        created = Dashboard(name=name, plots=[plot])
+        return [*dashboards, created], created, True
+
+    updated = existing.model_copy(update={"plots": [*existing.plots, plot]})
+    return (
+        [updated if d.id == existing.id else d for d in dashboards],
+        updated,
+        False,
+    )

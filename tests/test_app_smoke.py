@@ -58,7 +58,7 @@ def test_with_a_file_every_tab_renders_without_errors(workdir):
     assert not at.exception and not at.error
     assert [tab.label for tab in at.tabs][:3] == [
         "Explore",
-        "Plot Builder",
+        "Plot",
         "Dashboard",
     ]
     metrics = {m.label: m.value for m in at.metric}
@@ -103,6 +103,59 @@ def test_searching_columns_filters_the_table(workdir):
     frames = [df.value for df in at.dataframe]
     columns_table = next(f for f in frames if "distinct" in f.columns)
     assert list(columns_table["column"]) == ["flow"]
+
+
+def _saved_dashboards(workdir):
+    path = workdir / "dashboards.json"
+    return json.loads(path.read_text(encoding="utf-8"))["dashboards"]
+
+
+def _save_plot(at, name="My board"):
+    next(t for t in at.text_input if t.label == "Dashboard name").input(name).run()
+    next(b for b in at.button if b.label == "Save to dashboard").click().run()
+    at.run()  # AppTest keeps stale elements after st.rerun(); this run clears them
+
+
+def test_the_plot_tab_draws_a_preview_and_keeps_styling_out_of_the_sidebar(workdir):
+    at = _run(select_recent=True)
+
+    assert not at.exception and not at.error
+    assert "plot_preview" in _chart_keys(at)
+    assert not list(at.sidebar.color_picker)
+
+
+def test_a_plot_is_saved_without_series_styles_unless_customised(workdir):
+    at = _run(select_recent=True)
+
+    _save_plot(at)
+
+    assert not at.exception
+    (dashboard,) = _saved_dashboards(workdir)
+    assert dashboard["name"] == "My board"
+    assert dashboard["plots"][0]["series_style"] == {}
+
+
+def test_customised_series_styles_are_saved_with_the_plot(workdir):
+    at = _run(select_recent=True)
+    next(t for t in at.toggle if t.label == "Customise series").set_value(True).run()
+
+    _save_plot(at)
+
+    (dashboard,) = _saved_dashboards(workdir)
+    style = dashboard["plots"][0]["series_style"]
+    assert len(style) == 1
+    assert next(iter(style.values()))["width"] == 2
+
+
+def test_saving_twice_adds_a_second_plot_to_the_same_dashboard(workdir):
+    at = _run(select_recent=True)
+    _save_plot(at)
+
+    next(b for b in at.button if b.label == "Save to dashboard").click().run()
+
+    (dashboard,) = _saved_dashboards(workdir)
+    assert len(dashboard["plots"]) == 2
+    assert dashboard["plots"][0]["id"] != dashboard["plots"][1]["id"]
 
 
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):

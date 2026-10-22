@@ -20,7 +20,7 @@ def build_plot_spec_from_builder(
     agg: str | None,
     series_style: dict[str, dict[str, Any]] | None = None,
 ) -> PlotSpec:
-    """Create a validated plot specification from the Plot Builder inputs.
+    """Create a validated plot specification from the Plot tab inputs.
 
     Raises ``pydantic.ValidationError`` when the inputs do not form a valid plot.
     """

@@ -141,7 +141,7 @@ def render_compare_tab(dataset: MainDatasetContext) -> None:
 
     cmp_dashboards = state.dashboards
     if not cmp_dashboards:
-        st.info("No saved plot dashboards yet. Create one in **Plot Builder** first.")
+        st.info("No saved plot dashboards yet. Create one in **Plot** first.")
         return
 
     cmp_ordered = sorted(cmp_dashboards, key=lambda dashboard: dashboard.name.lower())

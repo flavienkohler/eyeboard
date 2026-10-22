@@ -34,7 +34,7 @@ from eyeboard.ui.tabs.compare import render_compare_tab
 from eyeboard.ui.tabs.dashboard import render_dashboard_tab
 from eyeboard.ui.tabs.dashboards_manager import render_dashboards_manager_tab
 from eyeboard.ui.tabs.explore import render_explore_tab
-from eyeboard.ui.tabs.plot_builder import render_plot_builder_tab
+from eyeboard.ui.tabs.plot import render_plot_tab
 from eyeboard.ui.text import escape_markdown
 
 
@@ -77,7 +77,7 @@ def main() -> None:
     tabs = st.tabs(
         [
             "Explore",
-            "Plot Builder",
+            "Plot",
             "Dashboard",
             "Compare (2 CSVs)",
             "Dashboards Manager",
@@ -87,7 +87,7 @@ def main() -> None:
     with tabs[0]:
         render_explore_tab(dataset)
     with tabs[1]:
-        render_plot_builder_tab(dataset)
+        render_plot_tab(dataset)
     with tabs[2]:
         render_dashboard_tab(dataset)
     with tabs[3]:

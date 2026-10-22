@@ -27,7 +27,7 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
 
     dashboards = state.dashboards
     if not dashboards:
-        st.info("No saved dashboards yet. Build one in **Plot Builder** and save it.")
+        st.info("No saved dashboards yet. Build one in **Plot** and save it.")
         return
 
     ordered = sorted(dashboards, key=lambda dashboard: dashboard.name.lower())

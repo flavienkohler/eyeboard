@@ -4,6 +4,7 @@ from helpers import make_dashboard, make_plot
 
 from eyeboard.dashboards.document import SCHEMA_VERSION
 from eyeboard.services.dashboards import (
+    add_plot_to_dashboards,
     find_dashboard_by_name,
     load_dashboards,
     remove_dashboard_plot,
@@ -125,3 +126,26 @@ def test_remove_dashboard_plot_drops_matching_plot():
     updated = remove_dashboard_plot(dashboard, "plot-1")
 
     assert [p.id for p in updated.plots] == ["plot-2"]
+
+
+def test_add_plot_to_dashboards_appends_to_a_dashboard_of_the_same_name():
+    board = make_dashboard("d1", "Sensor Board")
+    plot = make_plot(id="new-plot")
+
+    dashboards, target, created = add_plot_to_dashboards(
+        [board], " sensor board ", plot
+    )
+
+    assert not created and target.id == "d1"
+    assert [p.id for p in target.plots] == [board.plots[0].id, "new-plot"]
+    assert dashboards == [target]
+    assert len(board.plots) == 1  # the original is not modified
+
+
+def test_add_plot_to_dashboards_creates_a_new_dashboard_for_a_new_name():
+    board = make_dashboard("d1", "Sensor Board")
+
+    dashboards, target, created = add_plot_to_dashboards([board], "Other", make_plot())
+
+    assert created and target.name == "Other"
+    assert dashboards == [board, target]

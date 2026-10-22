@@ -25,6 +25,9 @@ class ColumnProfile:
     maximum: str
     checks: tuple[str, ...] = ()
     decimal_comma: bool = False
+    constant: bool = False  # one value only
+    empty: bool = False  # no value at all
+    index_like: bool = False  # 1, 2, 3...: a row counter, not a measurement
 
 
 def _range(series: pd.Series, kind: str) -> tuple[str, str]:
@@ -35,6 +38,17 @@ def _range(series: pd.Series, kind: str) -> tuple[str, str]:
     if kind == "date":
         return str(values.min()), str(values.max())
     return f"{values.min():.6g}", f"{values.max():.6g}"
+
+
+def _is_row_counter(numbers: pd.Series) -> bool:
+    """Whole numbers that only go up, never repeat and have no gap in the data."""
+    if len(numbers) < 3 or numbers.isna().any():
+        return False
+    return bool(
+        numbers.is_monotonic_increasing
+        and numbers.is_unique
+        and (numbers % 1 == 0).all()
+    )
 
 
 def profile_column(name: str, series: pd.Series) -> ColumnProfile:
@@ -69,9 +83,11 @@ def profile_column(name: str, series: pd.Series) -> ColumnProfile:
 
     missing = int(series.isna().sum())
     distinct = int(series.nunique(dropna=True))
-    if missing == len(series) and len(series):
+    empty = missing == len(series) and len(series) > 0
+    constant = distinct == 1 and not empty
+    if empty:
         checks.append(t("empty"))
-    elif distinct == 1:
+    elif constant:
         checks.append(t("constant"))
 
     minimum, maximum = _range(numbers, kind)
@@ -85,6 +101,9 @@ def profile_column(name: str, series: pd.Series) -> ColumnProfile:
         maximum=maximum,
         checks=tuple(checks),
         decimal_comma=decimal_comma,
+        constant=constant,
+        empty=empty,
+        index_like=kind == "number" and _is_row_counter(numbers),
     )
 
 
@@ -106,3 +125,15 @@ def profiles_to_frame(profiles: list[ColumnProfile]) -> pd.DataFrame:
             "checks": ["; ".join(p.checks) for p in profiles],
         }
     )
+
+
+def suggested_series(profiles: list[ColumnProfile]) -> list[str]:
+    """The column a first plot should show: the first real measurement.
+
+    Row counters, constant and empty columns make dull first plots, so they come
+    last; when nothing else is numeric the first number is used anyway.
+    """
+    numbers = [p for p in profiles if p.kind == "number"]
+    good = [p for p in numbers if not (p.index_like or p.constant or p.empty)]
+    chosen = (good or numbers)[:1]
+    return [p.name for p in chosen]

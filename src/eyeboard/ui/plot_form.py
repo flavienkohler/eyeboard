@@ -22,6 +22,7 @@ from eyeboard.plotting.export import png_config
 from eyeboard.plotting.figures import is_info_note, render_plot_from_spec
 from eyeboard.plotting.specs import build_plot_spec_from_builder
 from eyeboard.services.columns import normalize_colname
+from eyeboard.services.profile import suggested_series
 from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.exports import render_downloads
 from eyeboard.ui.text import escape_markdown
@@ -84,10 +85,7 @@ def render_plot_form(
     if initial:
         y_default = _keep(start.y_cols, cols)
     else:
-        numeric = [
-            col for col in cols if pd.api.types.is_numeric_dtype(dataset.df_parsed[col])
-        ]
-        y_default = (numeric or cols)[:1]
+        y_default = _keep(suggested_series(dataset.profiles), cols) or cols[:1]
     y_cols = st.multiselect(
         t("Y axis (primary)"), options=cols, default=y_default, key=key("y")
     )

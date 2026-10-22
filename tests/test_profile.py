@@ -66,3 +66,46 @@ def test_the_display_table_has_one_row_per_column():
 
     assert list(frame["column"]) == ["a", "b"]
     assert list(frame.columns)[:3] == ["column", "type", "missing %"]
+
+
+def test_a_row_counter_a_constant_and_an_empty_column_are_recognised():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "const": [7, 7, 7, 7],
+            "none": [None, None, None, None],
+            "flow": [1.5, 0.5, 2.5, 1.0],
+        }
+    )
+
+    profiles = _by_name(df)
+
+    assert profiles["id"].index_like and not profiles["flow"].index_like
+    assert profiles["const"].constant and not profiles["const"].empty
+    assert profiles["none"].empty and not profiles["none"].constant
+
+
+def test_a_first_plot_shows_the_first_real_measurement():
+    from eyeboard.services.profile import suggested_series
+
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "const": [7, 7, 7, 7],
+            "label": ["a", "b", "c", "d"],
+            "flow": [1.5, 0.5, 2.5, 1.0],
+            "temp": [3.0, 4.0, 5.0, 6.5],
+        }
+    )
+
+    assert suggested_series(profile_columns(df)) == ["flow"]
+
+
+def test_the_first_plot_falls_back_to_a_number_when_nothing_better_exists():
+    from eyeboard.services.profile import suggested_series
+
+    only_counters = pd.DataFrame({"id": [1, 2, 3], "text": ["a", "b", "c"]})
+    no_numbers = pd.DataFrame({"text": ["a", "b"]})
+
+    assert suggested_series(profile_columns(only_counters)) == ["id"]
+    assert suggested_series(profile_columns(no_numbers)) == []

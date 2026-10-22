@@ -63,13 +63,7 @@ def render_read_report(dataset: MainDatasetContext) -> None:
             parse_summary = t("No non-empty values")
 
     with st.container(border=True):
-        title_col, source_col = st.columns([1.4, 1], vertical_alignment="center")
-        with title_col:
-            st.caption(t("Read report"))
-        with source_col:
-            st.caption(
-                f"{t(read_report.source_kind)}: `{read_report.source_label or dataset.label}`"
-            )
+        st.caption(t("Read report"))
 
         by_name = {
             setting.name: setting.text()

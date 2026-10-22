@@ -41,3 +41,9 @@ class MainDatasetContext:
     date_parse_warning: str | None
     date_order: str | None
     profiles: list[ColumnProfile]
+
+
+def dataset_fingerprint(dataset: MainDatasetContext) -> str:
+    """Identify the loaded table (file and columns), for widget keys and resets."""
+    columns = "".join(str(col) for col in dataset.cols)
+    return f"{dataset.source.key}|{hash(columns)}"

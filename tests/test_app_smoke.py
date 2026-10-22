@@ -158,6 +158,30 @@ def test_saving_twice_adds_a_second_plot_to_the_same_dashboard(workdir):
     assert dashboard["plots"][0]["id"] != dashboard["plots"][1]["id"]
 
 
+def test_a_saved_plot_is_edited_with_the_same_form_filled_in(workdir):
+    _add_dashboard_and_second_csv(workdir)
+    at = _run(select_recent=True)
+
+    y_axis = next(
+        m
+        for m in at.multiselect
+        if (m.key or "").startswith("edit_") and (m.key or "").endswith("_y")
+    )
+    assert y_axis.value == ["flow"]
+    title = next(
+        t
+        for t in at.text_input
+        if (t.key or "").startswith("edit_") and t.label.startswith("Plot title")
+    )
+    title.input("Edited").run()
+    next(b for b in at.button if b.label == "Save plot changes").click().run()
+
+    (dashboard,) = _saved_dashboards(workdir)
+    assert dashboard["plots"][0]["title"] == "Edited"
+    assert dashboard["plots"][0]["y_cols"] == ["flow"]
+    assert dashboard["plots"][0]["id"]  # the plot keeps its own id
+
+
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):
     at = _run(select_recent=True)
 

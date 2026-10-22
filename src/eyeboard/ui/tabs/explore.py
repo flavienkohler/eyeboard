@@ -11,7 +11,7 @@ from eyeboard.plotting.figures import (
 )
 from eyeboard.services.columns import normalize_colname
 from eyeboard.services.profile import profiles_to_frame
-from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.context import MainDatasetContext, dataset_fingerprint
 from eyeboard.ui.header import render_read_report
 from eyeboard.ui.session import state
 from eyeboard.ui.text import escape_markdown
@@ -23,15 +23,9 @@ PREVIEW_ROWS = 200
 TABLE_MAX_HEIGHT = 420
 
 
-def _dataset_signature(dataset: MainDatasetContext) -> str:
-    """Identify the loaded table, so the plot paging restarts for a new file."""
-    columns = "\x1f".join(str(col) for col in dataset.cols)
-    return f"{dataset.source.key}|{hash(columns)}"
-
-
 def _reset_for_new_dataset(dataset: MainDatasetContext) -> None:
     """Start the mini-plot paging again, and pause plots for big files."""
-    signature = _dataset_signature(dataset)
+    signature = dataset_fingerprint(dataset)
     if state.explore_signature == signature:
         return
     state.explore_signature = signature

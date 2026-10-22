@@ -3,34 +3,25 @@
 import json
 
 import streamlit as st
-from pydantic import ValidationError
 
-from eyeboard.config import PLOT_TYPES, THEMES
 from eyeboard.dashboards.document import (
-    describe_validation_error,
     parse_single_dashboard,
 )
 from eyeboard.dashboards.model import (
-    AGGREGATIONS,
-    DASH_STYLES,
     Dashboard,
     PlotSpec,
-    SeriesStyle,
     new_id,
 )
-from eyeboard.plotting.figures import render_plot_from_spec
-from eyeboard.plotting.specs import build_plot_spec_from_builder
 from eyeboard.services.columns import normalize_colname
 from eyeboard.services.dashboards import (
     remove_dashboard_plot,
     update_dashboard_plot,
 )
-from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.context import MainDatasetContext, dataset_fingerprint
 from eyeboard.ui.persistence import persist_dashboards_with_feedback
+from eyeboard.ui.plot_form import render_plot_form, render_preview
 from eyeboard.ui.session import state
 from eyeboard.ui.text import escape_markdown
-
-DEFAULT_COLORS = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"]
 
 
 def _dashboard_json(dashboard: Dashboard) -> str:
@@ -224,146 +215,15 @@ def render_dashboard_plot_editor(
         if remove_disabled:
             st.caption("A dashboard must keep at least one plot.")
 
-    editable_df = dataset.df_parsed
-    editable_cols = dataset.cols
-    plot_form_key = f"dashboard_plot_editor_{selected_plot_id}"
-    initial_y2_cols = [col for col in selected_plot.y2_cols if col in editable_cols]
-    initial_y_cols = [col for col in selected_plot.y_cols if col in editable_cols]
-    x_default = (
-        selected_plot.x_col
-        if selected_plot.x_col in editable_cols
-        else (
-            dataset.date_col if dataset.date_col in editable_cols else editable_cols[0]
-        )
+    prefix = f"edit_{selected_plot_id}_{dataset_fingerprint(dataset)}"
+    choices = render_plot_form(
+        dataset, initial=selected_plot, key_prefix=prefix, date_filter=False
     )
-
-    with st.expander("Plot settings", expanded=True):
-        left, right = st.columns(2, vertical_alignment="top")
-        with left:
-            plot_label = st.text_input(
-                "Plot label",
-                value=selected_plot.title or "",
-                key=f"{plot_form_key}_title",
-            )
-            x_col = st.selectbox(
-                "X axis",
-                options=editable_cols,
-                index=editable_cols.index(x_default),
-                key=f"{plot_form_key}_x",
-            )
-            y_cols = st.multiselect(
-                "Y axis (primary)",
-                options=editable_cols,
-                default=initial_y_cols,
-                key=f"{plot_form_key}_y",
-            )
-            enable_y2 = st.toggle(
-                "Enable secondary Y axis",
-                value=bool(initial_y2_cols),
-                key=f"{plot_form_key}_enable_y2",
-            )
-            y2_cols = (
-                st.multiselect(
-                    "Y axis (secondary)",
-                    options=[col for col in editable_cols if col not in y_cols],
-                    default=[col for col in initial_y2_cols if col not in y_cols],
-                    key=f"{plot_form_key}_y2",
-                )
-                if enable_y2
-                else []
-            )
-            plot_type = st.selectbox(
-                "Type",
-                options=PLOT_TYPES,
-                index=PLOT_TYPES.index(selected_plot.plot_type),
-                key=f"{plot_form_key}_type",
-            )
-        with right:
-            theme = st.selectbox(
-                "Theme",
-                options=THEMES,
-                index=THEMES.index(selected_plot.theme),
-                key=f"{plot_form_key}_theme",
-            )
-            yaxis_title_1 = st.text_input(
-                "Y1 axis title",
-                value=selected_plot.yaxis_title_1 or "",
-                key=f"{plot_form_key}_y1_title",
-            )
-            yaxis_title_2 = st.text_input(
-                "Y2 axis title",
-                value=selected_plot.yaxis_title_2 or "",
-                key=f"{plot_form_key}_y2_title",
-                disabled=not enable_y2,
-            )
-            color_options = [None, *editable_cols]
-            color_col = st.selectbox(
-                "Color/group by (optional)",
-                options=color_options,
-                index=(
-                    color_options.index(selected_plot.color_col)
-                    if selected_plot.color_col in color_options
-                    else 0
-                ),
-                key=f"{plot_form_key}_color",
-            )
-            agg_options = [None, *AGGREGATIONS]
-            agg = st.selectbox(
-                "Aggregate Y by X",
-                options=agg_options,
-                index=agg_options.index(selected_plot.agg),
-                key=f"{plot_form_key}_agg",
-            )
-
-    style_map = render_plot_style_editor(
-        selected_plot=selected_plot,
-        y_cols=y_cols,
-        y2_cols=y2_cols,
-        key_prefix=plot_form_key,
-    )
-    try:
-        edited_spec = build_plot_spec_from_builder(
-            title=plot_label.strip() or None,
-            x_col=x_col,
-            y_cols=y_cols,
-            plot_type=plot_type,
-            theme=theme,
-            enable_secondary_axis=enable_y2,
-            y2_cols=y2_cols,
-            yaxis_title_1=yaxis_title_1.strip() or None,
-            yaxis_title_2=yaxis_title_2.strip() or None,
-            color_col=color_col,
-            agg=agg,
-            series_style=style_map,
-        ).model_copy(update={"id": selected_plot.id})
-    except ValidationError as exc:
-        _show_problems(
-            "These settings do not make a valid plot.",
-            describe_validation_error(exc),
-        )
-        return
-
     st.markdown("##### Plot Preview")
-    preview_fig, preview_warnings = render_plot_from_spec(
-        editable_df,
-        edited_spec,
-        list(editable_df.columns),
-    )
-    for warning in preview_warnings:
-        if warning.startswith("Matched "):
-            st.info(warning)
-        else:
-            st.warning(warning)
-    if preview_fig is not None:
-        st.plotly_chart(
-            preview_fig,
-            width="stretch",
-            key=f"{plot_form_key}_preview",
-        )
-    else:
-        st.error("Could not render the edited plot on the current dataset.")
+    edited_spec = render_preview(choices, f"{prefix}_preview")
 
-    if st.button("Save plot changes", width="stretch"):
+    if st.button("Save plot changes", width="stretch", disabled=edited_spec is None):
+        edited_spec = edited_spec.model_copy(update={"id": selected_plot.id})
         updated_dashboard = update_dashboard_plot(sel, selected_plot_id, edited_spec)
         new_dashboards = [
             updated_dashboard if dashboard.id == sel.id else dashboard
@@ -374,60 +234,6 @@ def render_dashboard_plot_editor(
             success_message="Plot updated in dashboard.",
         ):
             st.rerun()
-
-
-def render_plot_style_editor(
-    *,
-    selected_plot: PlotSpec,
-    y_cols: list[str],
-    y2_cols: list[str],
-    key_prefix: str,
-) -> dict[str, dict[str, object]]:
-    """Render per-series style controls in the manager tab."""
-    with st.expander("Series styling", expanded=False):
-        st.caption("Adjust line color, width, and dash style for each visible series.")
-        style_map: dict[str, dict[str, object]] = {}
-        series_list = list(dict.fromkeys((y_cols or []) + (y2_cols or [])))
-        if not series_list:
-            st.info("Select Y columns to edit series styles.")
-            return style_map
-
-        for idx, series_name in enumerate(series_list):
-            default_style = selected_plot.series_style.get(series_name) or SeriesStyle()
-            safe = normalize_colname(series_name).replace(" ", "_") or "series"
-            st.markdown(f"**{escape_markdown(series_name)}**")
-            c1, c2, c3 = st.columns([1.2, 1, 1], vertical_alignment="center")
-            with c1:
-                color = st.color_picker(
-                    "Color",
-                    value=default_style.color
-                    or DEFAULT_COLORS[idx % len(DEFAULT_COLORS)],
-                    key=f"{key_prefix}_{safe}_color",
-                    label_visibility="collapsed",
-                )
-            with c2:
-                width = st.slider(
-                    "Width",
-                    min_value=1,
-                    max_value=8,
-                    value=int(default_style.width or 2),
-                    key=f"{key_prefix}_{safe}_width",
-                    label_visibility="collapsed",
-                )
-            with c3:
-                dash = st.selectbox(
-                    "Style",
-                    options=DASH_STYLES,
-                    index=DASH_STYLES.index(default_style.dash or "solid"),
-                    key=f"{key_prefix}_{safe}_dash",
-                    label_visibility="collapsed",
-                )
-            style_map[series_name] = {
-                "color": color,
-                "width": width,
-                "dash": dash,
-            }
-        return style_map
 
 
 def _format_plot_option(plot: PlotSpec) -> str:

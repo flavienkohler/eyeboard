@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from eyeboard.config import APP_LAYOUT, APP_PAGE_ICON, APP_PAGE_TITLE
+from eyeboard.config import APP_LAYOUT, APP_PAGE_ICON, APP_PAGE_TITLE, LOGO_PATH
 from eyeboard.dashboards.document import LoadResult
 from eyeboard.i18n import set_language, t
 from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
@@ -46,6 +46,7 @@ def main() -> None:
         layout=APP_LAYOUT,
     )
 
+    st.logo(str(LOGO_PATH), size="large")
     initialize_state(state)
     set_language(state.language)
     render_header()

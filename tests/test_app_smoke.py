@@ -333,6 +333,17 @@ def test_switching_to_french_translates_the_page_and_keeps_the_choices(workdir):
     assert any("virgule décimale" in w.value for w in at.warning)
 
 
+def test_the_about_box_gives_the_version_and_where_to_send_feedback(workdir):
+    from eyeboard import __version__
+
+    at = _run(select_recent=True)
+
+    texts = [m.value for m in at.sidebar.markdown]
+    assert f"**EyeBoard** {__version__}" in texts
+    assert any("issues/new/choose" in text for text in texts)
+    assert any("github.com/flavienkohler" in text for text in texts)
+
+
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):
     at = _run(select_recent=True)
 

@@ -2,7 +2,16 @@
 
 import streamlit as st
 
-from eyeboard.config import DATE_PARSE_MODES, ENCODING_OPTIONS
+from eyeboard import __version__
+from eyeboard.config import (
+    AUTHOR_GITHUB_URL,
+    AUTHOR_LINKEDIN_URL,
+    AUTHOR_NAME,
+    DATE_PARSE_MODES,
+    ENCODING_OPTIONS,
+    ISSUES_URL,
+    REPO_URL,
+)
 from eyeboard.i18n import LANGUAGES, t
 from eyeboard.models import DateSettings, ReadOptions
 from eyeboard.paths import recent_dir
@@ -36,6 +45,7 @@ def render_sidebar() -> SidebarSelection:
             format_func=LANGUAGES.__getitem__,
             key="language",
         )
+        render_about()
 
     return SidebarSelection(
         uploaded_file=uploaded_file,
@@ -44,6 +54,26 @@ def render_sidebar() -> SidebarSelection:
         read_options=read_options,
         status_slot=status_slot,
     )
+
+
+def render_about() -> None:
+    """A small box with the version, the author's links and where to send feedback."""
+    with st.popover(t("About")):
+        st.markdown(f"**EyeBoard** {__version__}")
+        st.caption(t("Made by {author}", author=AUTHOR_NAME))
+        links = [f"[GitHub]({AUTHOR_GITHUB_URL})"]
+        if AUTHOR_LINKEDIN_URL:
+            links.append(f"[LinkedIn]({AUTHOR_LINKEDIN_URL})")
+        st.markdown("  ·  ".join(links))
+        st.markdown(
+            t("Ideas, bugs, questions: [open an issue]({url}).", url=ISSUES_URL)
+        )
+        st.caption(
+            t(
+                "Free for noncommercial use ([license]({url})).",
+                url=f"{REPO_URL}/blob/main/LICENSE",
+            )
+        )
 
 
 def choose_active_source(state: AppState, uploaded_signature: str | None) -> str | None:

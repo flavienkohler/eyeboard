@@ -1,5 +1,10 @@
 """EyeBoard package."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 __all__ = ["__version__"]
 
-__version__ = "0.1.0"
+try:
+    __version__ = version("eyeboard")
+except PackageNotFoundError:  # running from a source folder that was never installed
+    __version__ = "0+unknown"

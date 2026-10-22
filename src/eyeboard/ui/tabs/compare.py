@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from eyeboard.dashboards.model import Dashboard, PlotSpec
+from eyeboard.plotting.export import png_config
 from eyeboard.plotting.figures import render_plot_from_spec
 from eyeboard.plotting.overlay import overlay_figures
 from eyeboard.services.columns import resolve_column
@@ -19,6 +20,7 @@ from eyeboard.services.comparison import (
 from eyeboard.services.dataset import DataSource
 from eyeboard.ui.cache import load_table_cached, parse_table_cached
 from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.exports import render_downloads
 from eyeboard.ui.session import state
 from eyeboard.ui.source_picker import render_source_picker
 from eyeboard.ui.text import escape_markdown
@@ -187,8 +189,11 @@ def render_plot_comparison(
     fig_b, warnings_b = render_plot_from_spec(data_b, spec, list(data_b.columns))
     render_notes(warnings_a, warnings_b)
 
+    overlay = None
+    title = spec.title or "comparison"
     if mode == OVERLAY and fig_a is not None and fig_b is not None:
-        st.plotly_chart(overlay_figures(fig_a, fig_b), width="stretch", key=key)
+        overlay = overlay_figures(fig_a, fig_b)
+        st.plotly_chart(overlay, width="stretch", key=key, config=png_config(title))
     else:
         left, right = st.columns(2, vertical_alignment="top")
         for column, fig, side, name in (
@@ -200,9 +205,23 @@ def render_plot_comparison(
                 if fig is None:
                     st.error(f"This plot could not be drawn for {name}.")
                 else:
-                    st.plotly_chart(fig, width="stretch", key=f"{key}_{name}")
+                    st.plotly_chart(
+                        fig,
+                        width="stretch",
+                        key=f"{key}_{name}",
+                        config=png_config(f"{title}_{name}"),
+                    )
 
-    render_metrics(compare_plot(spec, a.data, data_b, alignment=alignment))
+    result = compare_plot(spec, a.data, data_b, alignment=alignment)
+    table = metrics_frame(result)
+    render_metrics(table, result.notes)
+    render_downloads(
+        toggle_key=f"{key}_export",
+        name=f"{title}_comparison",
+        fig=overlay,
+        table=table,
+        table_label="Metrics (CSV)",
+    )
 
 
 def render_notes(warnings_a: list[str], warnings_b: list[str]) -> None:
@@ -216,19 +235,25 @@ def render_notes(warnings_a: list[str], warnings_b: list[str]) -> None:
             (st.info if warning.startswith("Matched ") else st.warning)(text)
 
 
-def render_metrics(result: PlotComparison) -> None:
-    """Show RMSE, MAE, bias and correlation per series, and what was skipped."""
-    if result.rows:
-        table = pd.DataFrame(
-            {
-                "series": [name for name, _ in result.rows],
-                "points": [r.points for _, r in result.rows],
-                "RMSE": [r.rmse for _, r in result.rows],
-                "MAE": [r.mae for _, r in result.rows],
-                "bias (B - A)": [r.bias for _, r in result.rows],
-                "correlation": [r.correlation for _, r in result.rows],
-            }
-        )
+def metrics_frame(result: PlotComparison) -> pd.DataFrame | None:
+    """RMSE, MAE, bias and correlation per series as a table, if any were measured."""
+    if not result.rows:
+        return None
+    return pd.DataFrame(
+        {
+            "series": [name for name, _ in result.rows],
+            "points": [r.points for _, r in result.rows],
+            "RMSE": [r.rmse for _, r in result.rows],
+            "MAE": [r.mae for _, r in result.rows],
+            "bias (B - A)": [r.bias for _, r in result.rows],
+            "correlation": [r.correlation for _, r in result.rows],
+        }
+    )
+
+
+def render_metrics(table: pd.DataFrame | None, notes: list[str]) -> None:
+    """Show the metrics table, and what could not be compared."""
+    if table is not None:
         st.dataframe(
             table,
             hide_index=True,
@@ -238,5 +263,5 @@ def render_metrics(result: PlotComparison) -> None:
                 for name in ("RMSE", "MAE", "bias (B - A)", "correlation")
             },
         )
-    for note in result.notes:
+    for note in notes:
         st.caption(escape_markdown(note))

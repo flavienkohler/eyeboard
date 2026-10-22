@@ -297,6 +297,20 @@ def _save_demo_dashboard(workdir, at):
     at.run()
 
 
+def _download_labels(at):
+    return [b.proto.label for b in at.get("download_button")]
+
+
+def test_export_files_are_prepared_only_when_asked_for(workdir):
+    at = _run(select_recent=True)
+    assert "Chart (HTML)" not in _download_labels(at)
+
+    next(t for t in at.toggle if t.key == "plot_export").set_value(True).run()
+
+    labels = _download_labels(at)
+    assert "Chart (HTML)" in labels and "Plotted data (CSV)" in labels
+
+
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):
     at = _run(select_recent=True)
 

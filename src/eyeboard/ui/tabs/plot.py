@@ -24,7 +24,7 @@ def render_plot_tab(dataset: MainDatasetContext) -> None:
             date_filter=True,
         )
     with result:
-        spec = render_preview(choices, "plot_preview")
+        spec = render_preview(choices, "plot_preview", export_key="plot_export")
         st.divider()
         render_save_section(spec)
 

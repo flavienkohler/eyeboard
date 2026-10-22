@@ -6,6 +6,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from eyeboard.dashboards.model import Dashboard
+from eyeboard.plotting.export import png_config
 from eyeboard.plotting.figures import render_plot_from_spec
 from eyeboard.services.dashboard_sync import (
     apply_visible_y_ranges,
@@ -14,6 +15,7 @@ from eyeboard.services.dashboard_sync import (
 )
 from eyeboard.state import remember_recent_dashboard
 from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.exports import render_downloads
 from eyeboard.ui.session import state
 from eyeboard.ui.text import escape_markdown
 
@@ -131,6 +133,12 @@ def render_dashboard_view(dataset: MainDatasetContext) -> None:
                     combined_fig,
                     width="stretch",
                     key=f"dash_plot_{dashboard_id}",
+                    config=png_config(dashboard.name),
+                )
+                render_downloads(
+                    toggle_key=f"dash_export_{dashboard_id}",
+                    name=dashboard.name,
+                    fig=combined_fig,
                 )
 
 

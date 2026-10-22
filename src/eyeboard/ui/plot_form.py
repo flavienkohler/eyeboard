@@ -17,10 +17,12 @@ from pydantic import ValidationError
 from eyeboard.config import DEFAULT_SERIES_COLORS, PLOT_TYPES, THEMES
 from eyeboard.dashboards.document import describe_validation_error
 from eyeboard.dashboards.model import AGGREGATIONS, DASH_STYLES, PlotSpec, SeriesStyle
+from eyeboard.plotting.export import png_config
 from eyeboard.plotting.figures import render_plot_from_spec
 from eyeboard.plotting.specs import build_plot_spec_from_builder
 from eyeboard.services.columns import normalize_colname
 from eyeboard.ui.context import MainDatasetContext
+from eyeboard.ui.exports import render_downloads
 from eyeboard.ui.text import escape_markdown
 
 LOGGER = logging.getLogger(__name__)
@@ -265,8 +267,13 @@ def build_spec(choices: PlotChoices) -> tuple[PlotSpec | None, list[str]]:
     return spec, []
 
 
-def render_preview(choices: PlotChoices, chart_key: str) -> PlotSpec | None:
-    """Draw the figure of the current choices; return the spec when it was drawn."""
+def render_preview(
+    choices: PlotChoices, chart_key: str, export_key: str | None = None
+) -> PlotSpec | None:
+    """Draw the figure of the current choices; return the spec when it was drawn.
+
+    With ``export_key``, download buttons for the chart and its data follow it.
+    """
     if not choices.y_cols and not choices.y2_cols:
         st.info("Pick an X column and at least one Y column.")
         return None
@@ -293,5 +300,16 @@ def render_preview(choices: PlotChoices, chart_key: str) -> PlotSpec | None:
                 (st.info if warning.startswith("Matched ") else st.warning)(warning)
     if fig is None:
         return None
-    st.plotly_chart(fig, width="stretch", key=chart_key)
+    name = spec.title or "plot"
+    st.plotly_chart(fig, width="stretch", key=chart_key, config=png_config(name))
+    if export_key:
+        used = [spec.x_col, *spec.y_cols, *spec.y2_cols, spec.color_col]
+        columns = [c for c in dict.fromkeys(used) if c and c in choices.data.columns]
+        render_downloads(
+            toggle_key=export_key,
+            name=name,
+            fig=fig,
+            table=choices.data[columns],
+            table_label="Plotted data (CSV)",
+        )
     return spec

@@ -2,7 +2,7 @@
 
 **Open a time-series CSV, see what is really in it, plot it, and compare it with another run.**
 
-![EyeBoard with the demo data: the sidebar, the read report and the column table](assets/screenshots/overview.png)
+![A tour of EyeBoard on the demo data: explore the columns, plot, build a dashboard, compare two runs](assets/screenshots/tour.gif)
 
 EyeBoard is a small app that runs on your own computer. You give it a CSV file (sensor readings, a simulation output, a log) and it helps you answer the first questions quickly. Did it read the file the way I think it did? Which columns are empty, constant or broken? What does the data look like? How does this run differ from that one?
 

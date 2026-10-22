@@ -31,6 +31,10 @@
 - Added synthetic demo data (a "Try the demo data" button, and the files in `examples/`).
 - Charts can be exported as standalone HTML, plotted data and comparison metrics as CSV, and as PNG through the chart toolbar.
 - The interface can be switched to French (selector at the bottom of the sidebar). Texts go through a small translation table with English as the fallback, and tests check that the French table is complete.
+- Added a logo, an About box in the sidebar (version, author links, link to the issue forms), and issue forms for bug reports and ideas. The displayed version now comes from the installed package.
+- A new plot starts from the first real measurement instead of the first numeric column, which could be a row counter or a constant.
+- The page header is one line instead of four large metrics; the read report is no longer truncated; the title of a chart no longer collides with its legend.
+- The app now listens on this machine only (`--server.address 0.0.0.0` to change it).
 - Added a GitHub Actions workflow that runs ruff and the tests on Python 3.11 to 3.13.
 
 ## 0.2.0 - 2026-07-01

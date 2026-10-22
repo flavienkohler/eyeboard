@@ -289,7 +289,7 @@ def _add_dashboard_and_second_csv(workdir):
     from eyeboard.dashboards.document import serialize_document
 
     dashboard = make_dashboard(
-        "d1", "Flow board", plots=[make_plot(x_col="date", y_cols=["flow"])]
+        "d1", "Flow board", plots=[make_plot(id="p1", x_col="date", y_cols=["flow"])]
     )
     (workdir / "dashboards.json").write_text(
         serialize_document([dashboard]), encoding="utf-8"
@@ -323,19 +323,54 @@ def test_the_dashboard_tab_draws_a_saved_dashboard_with_the_shared_dates(workdir
     assert "Date/time column for dashboard (optional)" not in labels
 
 
-def test_the_compare_tab_draws_both_datasets_with_the_shared_dates(workdir):
+def _compare_run(workdir):
+    """The main file in the sidebar, the other recent file as B, decimal comma on."""
     _add_dashboard_and_second_csv(workdir)
-    at = AppTest.from_file(str(APP), default_timeout=60)
-    at.session_state["active_csv_source"] = "recent"
-    at.session_state["active_recent_csv_id"] = "abc"
-    at.session_state["cmp_recent_csv_a"] = "abc"
-    at.session_state["cmp_recent_csv_b"] = "def"
+    at = _run(select_recent=True)
+    next(s for s in at.sidebar.selectbox if s.label == "Decimal").select("Comma (,)")
     at.run()
+    next(s for s in at.selectbox if s.key == "compare_b_recent").select("def").run()
+    return at
+
+
+def test_compare_overlays_b_on_a_and_measures_the_gap(workdir):
+    at = _compare_run(workdir)
 
     assert not at.exception and not at.error
-    assert {"cmp_plot_a_d1", "cmp_plot_b_d1"} <= _chart_keys(at)
-    labels = [w.label for w in at.selectbox]
-    assert "Shared date/time column (optional)" not in labels
+    assert "cmp_d1_p1" in _chart_keys(at)
+    table = next(df.value for df in at.dataframe if "bias (B - A)" in df.value.columns)
+    assert list(table["series"]) == ["flow"]
+    assert table.loc[0, "points"] > 0
+
+
+def test_compare_can_show_two_charts_side_by_side(workdir):
+    at = _compare_run(workdir)
+
+    next(r for r in at.radio if r.key == "compare_mode").set_value("Side by side").run()
+
+    assert {"cmp_d1_p1_A", "cmp_d1_p1_B"} <= _chart_keys(at)
+
+
+def test_compare_draws_every_plot_of_a_dashboard(workdir):
+    _two_plot_dashboard(workdir)
+    cache = workdir / "recent"
+    (cache / "def_other.csv").write_text(CSV, encoding="utf-8")
+    index = json.loads((cache / "index.json").read_text(encoding="utf-8"))
+    index.append(
+        {
+            "id": "def",
+            "filename": "other.csv",
+            "cache_filename": "def_other.csv",
+            "file_size": 10,
+            "opened_at": "2026-10-21T09:00:00Z",
+        }
+    )
+    (cache / "index.json").write_text(json.dumps(index), encoding="utf-8")
+    at = _run(select_recent=True)
+
+    next(s for s in at.selectbox if s.key == "compare_b_recent").select("def").run()
+
+    assert {"cmp_d1_p1", "cmp_d1_p2"} <= _chart_keys(at)
 
 
 def test_files_of_an_older_version_are_imported_and_announced(

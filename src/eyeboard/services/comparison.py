@@ -11,6 +11,10 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_datetime64_any_dtype, is_numeric_dtype
 
+from eyeboard.dashboards.model import PlotSpec
+from eyeboard.services.columns import resolve_column
+from eyeboard.services.numeric import coerce_numeric
+
 Alignment = Literal["timestamps", "elapsed"]
 
 
@@ -122,3 +126,64 @@ def overlap(a_x: pd.Series, b_x: pd.Series) -> tuple[object, object] | None:
         return None
     low, high = max(a.min(), b.min()), min(a.max(), b.max())
     return (low, high) if low <= high else None
+
+
+@dataclass(frozen=True, slots=True)
+class PlotComparison:
+    """The comparison of every Y series of one plot, and what could not be compared."""
+
+    rows: list[tuple[str, SeriesComparison]]
+    notes: list[str]
+
+
+def compare_plot(
+    spec: PlotSpec,
+    a: pd.DataFrame,
+    b: pd.DataFrame,
+    *,
+    alignment: Alignment = "timestamps",
+) -> PlotComparison:
+    """Compare the series of a plot between two tables.
+
+    Columns are matched by name the way plots are drawn (``resolve_column``).
+    Grouped or aggregated plots are not compared: their traces are not series.
+    """
+    if spec.color_col or spec.agg:
+        return PlotComparison([], ["Not compared: the plot is grouped or aggregated."])
+
+    x_a = resolve_column(spec.x_col, list(a.columns))
+    x_b = resolve_column(spec.x_col, list(b.columns))
+    if x_a is None or x_b is None:
+        side = "A" if x_a is None else "B"
+        return PlotComparison(
+            [], [f"Not compared: x column '{spec.x_col}' is missing in {side}."]
+        )
+    if not (is_comparable_axis(a[x_a]) and is_comparable_axis(b[x_b])):
+        return PlotComparison([], ["Not compared: x is not made of dates or numbers."])
+
+    rows: list[tuple[str, SeriesComparison]] = []
+    notes: list[str] = []
+    for column in dict.fromkeys([*spec.y_cols, *spec.y2_cols]):
+        y_a = resolve_column(column, list(a.columns))
+        y_b = resolve_column(column, list(b.columns))
+        if y_a is None or y_b is None:
+            side = "A" if y_a is None else "B"
+            notes.append(f"'{column}' is missing in {side}.")
+            continue
+        values_a, info_a = coerce_numeric(a[y_a])
+        values_b, info_b = coerce_numeric(b[y_b])
+        if not (info_a.is_numeric and info_b.is_numeric):
+            side = "A" if not info_a.is_numeric else "B"
+            hint = (
+                " (decimal comma? see Reading options)"
+                if info_a.looks_like_decimal_comma or info_b.looks_like_decimal_comma
+                else ""
+            )
+            notes.append(f"'{column}' is not numeric in {side}{hint}.")
+            continue
+        result = compare_series(a[x_a], values_a, b[x_b], values_b, alignment=alignment)
+        if result is None:
+            notes.append(f"'{column}': no shared range to compare.")
+        else:
+            rows.append((column, result))
+    return PlotComparison(rows, notes)

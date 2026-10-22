@@ -83,6 +83,10 @@ class AppState:
     plot_save_target = StateKey[str | None](lambda: None)
     editing_plot_id = StateKey[str | None](lambda: None)
 
+    # Compare tab (also the keys of its widgets).
+    compare_mode = StateKey[str](lambda: "Overlay")
+    compare_alignment = StateKey[str](lambda: "Timestamps")
+
     # No instance attributes other than the store: a mistyped name is an error.
     __slots__ = ("store",)
 

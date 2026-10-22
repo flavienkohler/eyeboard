@@ -138,3 +138,50 @@ def test_overlap_returns_the_shared_range():
     assert low == pd.Timestamp("2020-01-04") and high == pd.Timestamp("2020-01-06")
     assert overlap(_days("2020-01-01", 2), _days("2021-01-01", 2)) is None
     assert overlap(pd.Series(["a"]), pd.Series(["a"])) is None
+
+
+def _frame(start, offset=0.0):
+    return pd.DataFrame(
+        {
+            "date": _days(start, 4),
+            "flow": [1.0, 2.0, 3.0, 4.0],
+            "temp": ["10", "11", "12", "13"],
+        }
+    ).assign(flow=lambda d: d["flow"] + offset)
+
+
+def test_compare_plot_measures_every_series_with_matched_column_names():
+    from helpers import make_plot
+
+    from eyeboard.services.comparison import compare_plot
+
+    spec = make_plot(x_col="date", y_cols=["Flow"], y2_cols=["temp"])
+
+    result = compare_plot(spec, _frame("2020-01-01"), _frame("2020-01-01", offset=1))
+
+    assert [name for name, _ in result.rows] == ["Flow", "temp"]
+    assert result.rows[0][1].bias == pytest.approx(1.0)
+    assert result.rows[1][1].bias == pytest.approx(0.0)  # text read as numbers
+    assert result.notes == []
+
+
+def test_compare_plot_says_what_could_not_be_compared():
+    from helpers import make_plot
+
+    from eyeboard.services.comparison import compare_plot
+
+    a, b = _frame("2020-01-01"), _frame("2021-01-01")
+
+    no_overlap = compare_plot(make_plot(x_col="date", y_cols=["flow"]), a, b)
+    missing = compare_plot(
+        make_plot(x_col="date", y_cols=["nope"]), a, _frame("2020-01-01")
+    )
+    grouped = compare_plot(
+        make_plot(x_col="date", y_cols=["flow"], color_col="temp"), a, a
+    )
+    text_x = compare_plot(make_plot(x_col="temp", y_cols=["flow"]), a, a)
+
+    assert no_overlap.rows == [] and "no shared range" in no_overlap.notes[0]
+    assert "missing in A" in missing.notes[0]
+    assert "grouped or aggregated" in grouped.notes[0]
+    assert "dates or numbers" in text_x.notes[0]

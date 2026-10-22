@@ -8,11 +8,9 @@ from eyeboard.dashboards.document import LoadResult
 from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
 from eyeboard.paths import data_dir
 from eyeboard.services.columns import guess_date_column
-from eyeboard.services.dataset import DataSource, source_from_path, source_from_upload
+from eyeboard.services.dataset import DataSource, source_from_upload
 from eyeboard.services.legacy import LegacyImport
 from eyeboard.services.recent_csvs import (
-    get_recent_csv_cache_path,
-    get_recent_csv_entry,
     remember_recent_csv,
 )
 from eyeboard.state import initialize_state
@@ -30,6 +28,7 @@ from eyeboard.ui.sidebar import (
     render_status_card,
     upload_signature,
 )
+from eyeboard.ui.source_picker import source_for_recent
 from eyeboard.ui.tabs.compare import render_compare_tab
 from eyeboard.ui.tabs.dashboards import render_dashboards_tab
 from eyeboard.ui.tabs.explore import render_explore_tab
@@ -124,14 +123,9 @@ def render_dashboards_load_problems(loaded: LoadResult) -> None:
 def resolve_source(selection: SidebarSelection) -> DataSource | None:
     """Turn the sidebar choice (recent file or upload) into a data source."""
     if selection.recent_csv_id is not None:
-        entry = get_recent_csv_entry(selection.recent_csv_id)
-        cache_path = get_recent_csv_cache_path(selection.recent_csv_id)
-        if entry is not None and cache_path.exists():
-            return source_from_path(
-                cache_path,
-                kind="Recent cache",
-                label=entry.get("filename") or cache_path.name,
-            )
+        source = source_for_recent(selection.recent_csv_id)
+        if source is not None:
+            return source
         st.warning("The selected recent file is no longer available.")
     if selection.uploaded_file is not None:
         return source_from_upload(selection.uploaded_file)

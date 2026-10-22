@@ -1,70 +1,85 @@
-"""Compare tab renderer."""
+"""Compare tab: the loaded file (A) against a second file (B), plot by plot."""
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import pandas as pd
 import streamlit as st
 
-from eyeboard.dashboards.model import Dashboard
-from eyeboard.models import ReadOptions
+from eyeboard.dashboards.model import Dashboard, PlotSpec
 from eyeboard.plotting.figures import render_plot_from_spec
+from eyeboard.plotting.overlay import overlay_figures
 from eyeboard.services.columns import resolve_column
-from eyeboard.services.dataset import DataSource, source_from_path, source_from_upload
-from eyeboard.services.recent_csvs import (
-    format_recent_csv_details,
-    get_recent_csv_cache_path,
-    list_recent_csvs,
+from eyeboard.services.comparison import (
+    Alignment,
+    PlotComparison,
+    compare_plot,
+    overlap,
+    shift_to_start,
 )
-from eyeboard.state import remember_recent_dashboard
+from eyeboard.services.dataset import DataSource
 from eyeboard.ui.cache import load_table_cached, parse_table_cached
 from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.session import state
+from eyeboard.ui.source_picker import render_source_picker
 from eyeboard.ui.text import escape_markdown
 
-
-def _compare_source(
-    uploaded_file: object,
-    recent_id: str | None,
-    recent_by_id: dict[str, dict],
-) -> DataSource | None:
-    """Pick the data source of one compared dataset (a recent file wins)."""
-    if recent_id is not None and recent_id in recent_by_id:
-        path = get_recent_csv_cache_path(recent_id)
-        if path.exists():
-            return source_from_path(
-                path,
-                kind="Recent cache",
-                label=recent_by_id[recent_id].get("filename") or path.name,
-            )
-    if uploaded_file is not None:
-        return source_from_upload(uploaded_file)
-    return None
+OVERLAY = "Overlay"
+SIDE_BY_SIDE = "Side by side"
+TIMESTAMPS = "Timestamps"
+ELAPSED = "Elapsed time"
 
 
-def _load_compare_dataset(
-    name: str,
-    source: DataSource | None,
-    options: ReadOptions,
-) -> tuple[pd.DataFrame | None, str]:
-    """Load one compared dataset through the cache, reporting read errors."""
-    if source is None:
-        return None, ""
-    df, _, error = load_table_cached(source, options)
+@dataclass(slots=True)
+class Side:
+    """One of the two compared datasets, ready to draw."""
+
+    label: str
+    data: pd.DataFrame
+    date_col: str | None
+
+
+def render_compare_tab(dataset: MainDatasetContext) -> None:
+    """Render the comparison of the loaded file with a second one."""
+    st.caption(
+        "A is the file loaded in the sidebar. Pick B here, then compare the plots of "
+        "your saved dashboards on both."
+    )
+    source_b = render_source_picker("B", "compare_b")
+    if source_b is None:
+        st.info("Choose the file B to compare with.")
+        return
+    side_b = load_side_b(dataset, source_b)
+    if side_b is None:
+        return
+    side_a = Side(dataset.label, dataset.df_parsed, dataset.date_col)
+
+    st.caption(
+        f"A: `{escape_markdown(side_a.label)}` ({len(side_a.data):,} rows)  |  "
+        f"B: `{escape_markdown(side_b.label)}` ({len(side_b.data):,} rows). "
+        "B is read with the same separator and decimal as A."
+    )
+    if dataset.date_col and side_b.date_col is None:
+        st.warning(
+            f"The date column '{dataset.date_col}' of A was not found in B, so the "
+            "date range cannot be shared. Plots whose x is a date may not line up."
+        )
+
+    dashboards = pick_dashboards()
+    if not dashboards:
+        return
+    mode, alignment = render_options()
+    side_a, side_b = apply_shared_range(side_a, side_b, alignment)
+
+    for dashboard in dashboards:
+        render_dashboard_comparison(dashboard, side_a, side_b, mode, alignment)
+
+
+def load_side_b(dataset: MainDatasetContext, source: DataSource) -> Side | None:
+    """Read and date-parse the second file with the settings of the main one."""
+    df, _, error = load_table_cached(source, dataset.read_options)
     if error:
-        st.error(f"Could not read CSV {name}: {error}")
-    return df, source.label
-
-
-def _parse_compare_dataset(
-    dataset: MainDatasetContext,
-    source: DataSource,
-    df: pd.DataFrame,
-) -> tuple[pd.DataFrame, str | None]:
-    """Parse the date column of a compared dataset with the shared date settings.
-
-    The date column chosen for the main dataset is matched by name in the compared
-    file; returns the parsed table and the matched column (or ``None``).
-    """
+        st.error(f"Could not read the file B: {error}")
+        return None
     settings = dataset.date_settings
     column = (
         resolve_column(settings.column, list(df.columns)) if settings.column else None
@@ -72,257 +87,156 @@ def _parse_compare_dataset(
     parsed = parse_table_cached(
         source, dataset.read_options, replace(settings, column=column), df
     )
-    return parsed.df, column
+    return Side(source.label, parsed.df, column)
 
 
-def render_compare_tab(dataset: MainDatasetContext) -> None:
-    """Render the compare-two-datasets tab."""
-    st.markdown("#### Compare")
-    st.caption("Load two CSVs and compare selected saved plot dashboards side by side.")
-
-    cmp_left, cmp_right = st.columns(2, vertical_alignment="top")
-    recent_csvs = list_recent_csvs(limit=10)
-    recent_options = [None] + [
-        entry.get("id") for entry in recent_csvs if entry.get("id")
-    ]
-    recent_by_id = {entry.get("id"): entry for entry in recent_csvs if entry.get("id")}
-    with cmp_left:
-        st.markdown("##### Dataset A")
-        cmp_up_a = st.file_uploader("Upload CSV A", type=["csv"], key="cmp_up_a")
-        cmp_recent_a = st.selectbox(
-            "Recent CSV for A",
-            options=recent_options,
-            index=0,
-            format_func=lambda value: (
-                "Choose a recent CSV"
-                if value is None
-                else recent_by_id.get(value, {}).get("filename", "Unnamed CSV")
-            ),
-            key="cmp_recent_csv_a",
-            help="Optional. If selected, this cached recent CSV is used for Dataset A.",
-        )
-        if cmp_recent_a is not None and cmp_recent_a in recent_by_id:
-            st.caption(format_recent_csv_details(recent_by_id[cmp_recent_a]))
-    with cmp_right:
-        st.markdown("##### Dataset B")
-        cmp_up_b = st.file_uploader("Upload CSV B", type=["csv"], key="cmp_up_b")
-        cmp_recent_b = st.selectbox(
-            "Recent CSV for B",
-            options=recent_options,
-            index=0,
-            format_func=lambda value: (
-                "Choose a recent CSV"
-                if value is None
-                else recent_by_id.get(value, {}).get("filename", "Unnamed CSV")
-            ),
-            key="cmp_recent_csv_b",
-            help="Optional. If selected, this cached recent CSV is used for Dataset B.",
-        )
-        if cmp_recent_b is not None and cmp_recent_b in recent_by_id:
-            st.caption(format_recent_csv_details(recent_by_id[cmp_recent_b]))
-
-    cmp_source_a = _compare_source(cmp_up_a, cmp_recent_a, recent_by_id)
-    cmp_source_b = _compare_source(cmp_up_b, cmp_recent_b, recent_by_id)
-    cmp_df_a, cmp_label_a = _load_compare_dataset(
-        "A", cmp_source_a, dataset.read_options
-    )
-    cmp_df_b, cmp_label_b = _load_compare_dataset(
-        "B", cmp_source_b, dataset.read_options
-    )
-
-    if cmp_df_a is None or cmp_df_b is None:
-        st.info("Provide both Dataset A and Dataset B to compare dashboards.")
-        return
-
-    st.caption(
-        f"A: `{cmp_label_a or 'CSV A'}` ({len(cmp_df_a):,} rows) | "
-        f"B: `{cmp_label_b or 'CSV B'}` ({len(cmp_df_b):,} rows)"
-    )
-
-    cmp_dashboards = state.dashboards
-    if not cmp_dashboards:
-        st.info("No saved plot dashboards yet. Create one in **Plot** first.")
-        return
-
-    cmp_ordered = sorted(cmp_dashboards, key=lambda dashboard: dashboard.name.lower())
-    cmp_dashboards_by_id = {dashboard.id: dashboard for dashboard in cmp_ordered}
-    cmp_dashboard_options = [dashboard.id for dashboard in cmp_ordered]
-
-    cmp_active_id = state.active_dashboard_id
-    cmp_default = (
-        [cmp_active_id]
-        if cmp_active_id in cmp_dashboard_options
-        else cmp_dashboard_options[:1]
-    )
-    cmp_selected_dashboard_ids = st.multiselect(
+def pick_dashboards() -> list[Dashboard]:
+    """Choose the saved dashboards to compare; empty when there is nothing to show."""
+    if not state.dashboards:
+        st.info("No saved dashboards yet. Create one in the **Plot** tab first.")
+        return []
+    ordered = sorted(state.dashboards, key=lambda d: d.name.lower())
+    by_id = {d.id: d for d in ordered}
+    active = state.active_dashboard_id
+    chosen = st.multiselect(
         "Dashboards to compare",
-        options=cmp_dashboard_options,
-        default=cmp_default,
-        format_func=lambda value: cmp_dashboards_by_id[value].name,
-        key="cmp_selected_dashboard_ids",
+        list(by_id),
+        default=[active] if active in by_id else list(by_id)[:1],
+        format_func=lambda value: by_id[value].name,
     )
-
-    if cmp_selected_dashboard_ids:
-        state.active_dashboard_id = cmp_selected_dashboard_ids[0]
-        remember_recent_dashboard(state, cmp_selected_dashboard_ids[0])
-
-    if not cmp_selected_dashboard_ids:
+    if not chosen:
         st.info("Select at least one dashboard to compare.")
-        return
+    return [by_id[value] for value in chosen]
 
-    compare_state = render_compare_options(
-        dataset, cmp_source_a, cmp_df_a, cmp_source_b, cmp_df_b
+
+def render_options() -> tuple[str, Alignment]:
+    """Choose how to show the files and how to line B up with A."""
+    left, right = st.columns(2)
+    mode = left.radio(
+        "Show",
+        [OVERLAY, SIDE_BY_SIDE],
+        horizontal=True,
+        key="compare_mode",
+        help="Overlay draws B dashed over A. Side by side draws two charts.",
     )
-    render_compare_results(
-        cmp_selected_dashboard_ids,
-        cmp_dashboards_by_id,
-        cmp_label_a,
-        cmp_label_b,
-        compare_state,
+    choice = right.radio(
+        "Line B up with A by",
+        [TIMESTAMPS, ELAPSED],
+        horizontal=True,
+        key="compare_alignment",
+        help=(
+            "Timestamps: the same moments. Elapsed time: each file counts from its "
+            "own start, to compare two runs begun at different times."
+        ),
     )
+    return mode, "elapsed" if choice == ELAPSED else "timestamps"
 
 
-def render_compare_options(
-    dataset: MainDatasetContext,
-    cmp_source_a: DataSource,
-    cmp_df_a: pd.DataFrame,
-    cmp_source_b: DataSource,
-    cmp_df_b: pd.DataFrame,
-) -> dict[str, object]:
-    """Parse both datasets with the shared date settings and apply the shared range."""
-    cmp_df_a_parsed, cmp_resolved_date_a = _parse_compare_dataset(
-        dataset, cmp_source_a, cmp_df_a
-    )
-    cmp_df_b_parsed, cmp_resolved_date_b = _parse_compare_dataset(
-        dataset, cmp_source_b, cmp_df_b
-    )
-
-    cmp_filtered_a = cmp_df_a_parsed
-    cmp_filtered_b = cmp_df_b_parsed
-
-    if (
-        cmp_resolved_date_a
-        and cmp_resolved_date_b
-        and cmp_resolved_date_a in cmp_df_a_parsed.columns
-        and cmp_resolved_date_b in cmp_df_b_parsed.columns
-    ):
-        dt_a = cmp_df_a_parsed[cmp_resolved_date_a]
-        dt_b = cmp_df_b_parsed[cmp_resolved_date_b]
-        if pd.api.types.is_datetime64_any_dtype(
-            dt_a
-        ) and pd.api.types.is_datetime64_any_dtype(dt_b):
-            valid_a = dt_a.dropna()
-            valid_b = dt_b.dropna()
-            if not valid_a.empty and not valid_b.empty:
-                overlap_min = max(valid_a.min(), valid_b.min())
-                overlap_max = min(valid_a.max(), valid_b.max())
-                if overlap_min <= overlap_max:
-                    with st.expander("Shared date range filter", expanded=False):
-                        cmp_range = st.slider(
-                            "Filter shared date range",
-                            min_value=overlap_min.to_pydatetime(),
-                            max_value=overlap_max.to_pydatetime(),
-                            value=(
-                                overlap_min.to_pydatetime(),
-                                overlap_max.to_pydatetime(),
-                            ),
-                            key="cmp_dateslider",
-                        )
-                    cmp_filtered_a = cmp_df_a_parsed[
-                        (cmp_df_a_parsed[cmp_resolved_date_a] >= cmp_range[0])
-                        & (cmp_df_a_parsed[cmp_resolved_date_a] <= cmp_range[1])
-                    ]
-                    cmp_filtered_b = cmp_df_b_parsed[
-                        (cmp_df_b_parsed[cmp_resolved_date_b] >= cmp_range[0])
-                        & (cmp_df_b_parsed[cmp_resolved_date_b] <= cmp_range[1])
-                    ]
-                    if cmp_filtered_a.empty or cmp_filtered_b.empty:
-                        st.warning(
-                            "The shared date range leaves at least one comparison dataset empty."
-                        )
-
-    return {
-        "cmp_filtered_a": cmp_filtered_a,
-        "cmp_filtered_b": cmp_filtered_b,
-        "cmp_avail_a": list(cmp_filtered_a.columns),
-        "cmp_avail_b": list(cmp_filtered_b.columns),
-    }
+def apply_shared_range(a: Side, b: Side, alignment: Alignment) -> tuple[Side, Side]:
+    """Limit both files to the dates they share (timestamps alignment only)."""
+    if alignment != "timestamps" or not a.date_col or not b.date_col:
+        return a, b
+    shared = overlap(a.data[a.date_col], b.data[b.date_col])
+    if shared is None:
+        if pd.api.types.is_datetime64_any_dtype(a.data[a.date_col]):
+            st.warning("The two files do not cover any common period.")
+        return a, b
+    low, high = (value.to_pydatetime() for value in shared)
+    with st.expander("Shared date range", expanded=False):
+        start, end = st.slider(
+            "Limit both files to",
+            min_value=low,
+            max_value=high,
+            value=(low, high),
+            key="compare_dates",
+        )
+    inside_a = a.data[a.data[a.date_col].between(start, end)]
+    inside_b = b.data[b.data[b.date_col].between(start, end)]
+    if inside_a.empty or inside_b.empty:
+        st.warning("The shared date range leaves one of the files empty.")
+    return replace(a, data=inside_a), replace(b, data=inside_b)
 
 
-def render_compare_results(
-    cmp_selected_dashboard_ids: list[str],
-    cmp_dashboards_by_id: dict[str, Dashboard],
-    cmp_label_a: str,
-    cmp_label_b: str,
-    compare_state: dict[str, object],
+def render_dashboard_comparison(
+    dashboard: Dashboard, a: Side, b: Side, mode: str, alignment: Alignment
 ) -> None:
-    """Render side-by-side comparison charts for the selected dashboards."""
-    for cmp_dashboard_id in cmp_selected_dashboard_ids:
-        cmp_dashboard = cmp_dashboards_by_id.get(cmp_dashboard_id)
-        if not cmp_dashboard:
-            continue
+    """Compare every plot of one dashboard."""
+    with st.container(border=True):
+        st.markdown(f"#### {escape_markdown(dashboard.name)}")
+        for index, spec in enumerate(dashboard.plots, start=1):
+            st.markdown(f"**{escape_markdown(spec.title or f'Plot {index}')}**")
+            key = f"cmp_{dashboard.id}_{spec.id}"
+            render_plot_comparison(spec, a, b, mode, alignment, key)
 
-        cmp_plots = cmp_dashboard.plots
-        if not cmp_plots:
-            with st.container(border=True):
-                st.markdown(f"**{escape_markdown(cmp_dashboard.name)}**")
-                st.warning("This dashboard contains no plots.")
-            continue
 
-        cmp_spec = cmp_plots[0]
+def line_up_b(spec: PlotSpec, a: Side, b: Side) -> pd.DataFrame:
+    """B with its x column moved to start where A starts (elapsed-time overlays)."""
+    x_a = resolve_column(spec.x_col, list(a.data.columns))
+    x_b = resolve_column(spec.x_col, list(b.data.columns))
+    if x_a is None or x_b is None:
+        return b.data
+    return b.data.assign(**{x_b: shift_to_start(b.data[x_b], a.data[x_a])})
 
-        with st.container(border=True):
-            st.markdown(f"**{escape_markdown(cmp_dashboard.name)}**")
-            c_a, c_b = st.columns(2, vertical_alignment="top")
 
-            with c_a:
-                st.caption(f"A - {escape_markdown(cmp_label_a or 'CSV A')}")
-                fig_a, warns_a = render_plot_from_spec(
-                    compare_state["cmp_filtered_a"],
-                    cmp_spec,
-                    compare_state["cmp_avail_a"],
-                )
-                if warns_a:
-                    with st.expander(
-                        f"Resolution notes (A) - {cmp_dashboard.name}",
-                        expanded=False,
-                    ):
-                        for warning in warns_a:
-                            if warning.startswith("Matched "):
-                                st.info(warning)
-                            else:
-                                st.warning(warning)
-                if fig_a is not None:
-                    st.plotly_chart(
-                        fig_a,
-                        width="stretch",
-                        key=f"cmp_plot_a_{cmp_dashboard_id}",
-                    )
+def render_plot_comparison(
+    spec: PlotSpec, a: Side, b: Side, mode: str, alignment: Alignment, key: str
+) -> None:
+    """Draw one plot on A and B, and measure the gap between them."""
+    data_b = line_up_b(spec, a, b) if alignment == "elapsed" else b.data
+    fig_a, warnings_a = render_plot_from_spec(a.data, spec, list(a.data.columns))
+    fig_b, warnings_b = render_plot_from_spec(data_b, spec, list(data_b.columns))
+    render_notes(warnings_a, warnings_b)
+
+    if mode == OVERLAY and fig_a is not None and fig_b is not None:
+        st.plotly_chart(overlay_figures(fig_a, fig_b), width="stretch", key=key)
+    else:
+        left, right = st.columns(2, vertical_alignment="top")
+        for column, fig, side, name in (
+            (left, fig_a, a, "A"),
+            (right, fig_b, b, "B"),
+        ):
+            with column:
+                st.caption(f"{name} - {escape_markdown(side.label)}")
+                if fig is None:
+                    st.error(f"This plot could not be drawn for {name}.")
                 else:
-                    st.error("Could not render this dashboard for Dataset A.")
+                    st.plotly_chart(fig, width="stretch", key=f"{key}_{name}")
 
-            with c_b:
-                st.caption(f"B - {escape_markdown(cmp_label_b or 'CSV B')}")
-                fig_b, warns_b = render_plot_from_spec(
-                    compare_state["cmp_filtered_b"],
-                    cmp_spec,
-                    compare_state["cmp_avail_b"],
-                )
-                if warns_b:
-                    with st.expander(
-                        f"Resolution notes (B) - {cmp_dashboard.name}",
-                        expanded=False,
-                    ):
-                        for warning in warns_b:
-                            if warning.startswith("Matched "):
-                                st.info(warning)
-                            else:
-                                st.warning(warning)
-                if fig_b is not None:
-                    st.plotly_chart(
-                        fig_b,
-                        width="stretch",
-                        key=f"cmp_plot_b_{cmp_dashboard_id}",
-                    )
-                else:
-                    st.error("Could not render this dashboard for Dataset B.")
+    render_metrics(compare_plot(spec, a.data, data_b, alignment=alignment))
+
+
+def render_notes(warnings_a: list[str], warnings_b: list[str]) -> None:
+    """List the column-matching notes of both files in one expander."""
+    notes = [("A", w) for w in warnings_a] + [("B", w) for w in warnings_b]
+    if not notes:
+        return
+    with st.expander(f"Notes ({len(notes)})", expanded=False):
+        for name, warning in notes:
+            text = f"{name}: {warning}"
+            (st.info if warning.startswith("Matched ") else st.warning)(text)
+
+
+def render_metrics(result: PlotComparison) -> None:
+    """Show RMSE, MAE, bias and correlation per series, and what was skipped."""
+    if result.rows:
+        table = pd.DataFrame(
+            {
+                "series": [name for name, _ in result.rows],
+                "points": [r.points for _, r in result.rows],
+                "RMSE": [r.rmse for _, r in result.rows],
+                "MAE": [r.mae for _, r in result.rows],
+                "bias (B - A)": [r.bias for _, r in result.rows],
+                "correlation": [r.correlation for _, r in result.rows],
+            }
+        )
+        st.dataframe(
+            table,
+            hide_index=True,
+            width="stretch",
+            column_config={
+                name: st.column_config.NumberColumn(format="%.4g")
+                for name in ("RMSE", "MAE", "bias (B - A)", "correlation")
+            },
+        )
+    for note in result.notes:
+        st.caption(escape_markdown(note))

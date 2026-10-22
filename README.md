@@ -58,7 +58,7 @@ Under each chart, *Prepare export files* gives a standalone HTML page of the cha
 
 ## Your files stay on your machine
 
-Nothing is uploaded anywhere and no usage statistics are sent. EyeBoard keeps your saved dashboards (`dashboards.json`) and copies of the files you opened (for the recent list) in one folder: `%APPDATA%/eyeboard` on Windows, the standard per-user data folder elsewhere, or the folder named by the `EYEBOARD_HOME` environment variable. The sidebar shows the exact location and can clear the recent files.
+Nothing is uploaded anywhere, no usage statistics are sent, and the app only listens on your own machine (`--server.address 0.0.0.0` opens it to the network if you ever want that). EyeBoard keeps your saved dashboards (`dashboards.json`) and copies of the files you opened (for the recent list) in one folder: `%APPDATA%/eyeboard` on Windows, the standard per-user data folder elsewhere, or the folder named by the `EYEBOARD_HOME` environment variable. The sidebar shows the exact location and can clear the recent files.
 
 The interface is available in English and French (selector at the bottom of the sidebar). Python 3.11 to 3.13 is supported.
 

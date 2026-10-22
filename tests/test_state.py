@@ -104,3 +104,34 @@ def test_initialize_state_loads_the_dashboards_only_once(tmp_path, monkeypatch):
 
     assert state.dashboards_loaded is first_load
     assert [d.id for d in state.dashboards] == ["changed"]
+
+
+def test_a_new_upload_wins_over_the_open_recent_file():
+    from eyeboard.ui.sidebar import choose_active_source
+
+    state = AppState({})
+    state.active_csv_source = "recent"
+    state.active_recent_csv_id = "abc"
+    state.last_uploaded_csv_signature = "old.csv:10"
+
+    assert choose_active_source(state, "new.csv:20") is None
+    assert state.active_csv_source == "upload"
+    assert state.active_recent_csv_id is None
+
+
+def test_a_recent_file_picked_after_an_upload_stays_active():
+    from eyeboard.ui.sidebar import choose_active_source
+
+    state = AppState({})
+    state.active_csv_source = "recent"
+    state.active_recent_csv_id = "abc"
+    state.last_uploaded_csv_signature = "same.csv:10"
+
+    assert choose_active_source(state, "same.csv:10") == "abc"
+    assert state.active_csv_source == "recent"
+
+
+def test_without_any_choice_nothing_is_active():
+    from eyeboard.ui.sidebar import choose_active_source
+
+    assert choose_active_source(AppState({}), None) is None

@@ -67,6 +67,15 @@ def test_with_a_file_every_tab_renders_without_errors(workdir):
     assert "Date parsing" in [e.label for e in at.sidebar.expander]
 
 
+def test_the_sidebar_shows_the_loaded_file_and_no_dashboard_picker(workdir):
+    at = _run(select_recent=True)
+
+    captions = [c.value for c in at.sidebar.caption]
+    assert "28 rows x 3 columns" in captions
+    assert "Date column `date`: 100% parsed" in captions
+    assert "Active dashboard" not in [s.label for s in at.sidebar.selectbox]
+
+
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):
     at = _run(select_recent=True)
 
@@ -180,6 +189,8 @@ def test_clearing_the_recent_files_empties_the_list(workdir):
     assert any(b.label == "small.csv" for b in at.sidebar.button)
 
     next(b for b in at.sidebar.button if b.label == "Clear recent files").click()
+    at.run()
+    # AppTest keeps trailing elements of a shorter rerun; one more run drops them.
     at.run()
 
     assert not at.exception

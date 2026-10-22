@@ -12,14 +12,20 @@ from eyeboard.services.recent_csvs import (
     list_recent_csvs,
     touch_recent_csv,
 )
-from eyeboard.ui.context import SidebarSelection
+from eyeboard.state import AppState
+from eyeboard.ui.context import MainDatasetContext, SidebarSelection
 from eyeboard.ui.session import state
+from eyeboard.ui.text import escape_markdown
+
+RECENT_BUTTONS = 3
 
 
 def render_sidebar() -> SidebarSelection:
     """Render the main sidebar and return the current selections."""
     with st.sidebar:
         uploaded_file, recent_csv_id = render_data_section()
+        # Filled once the file is loaded, but shown right under the data section.
+        status_slot = st.container()
         st.divider()
         read_options = render_reading_options()
 
@@ -27,144 +33,121 @@ def render_sidebar() -> SidebarSelection:
         uploaded_file=uploaded_file,
         recent_csv_id=recent_csv_id,
         read_options=read_options,
+        status_slot=status_slot,
     )
 
 
+def choose_active_source(state: AppState, uploaded_signature: str | None) -> str | None:
+    """Decide which file is active and return the recent file to open, if any.
+
+    A file uploaded just now wins over the recent file that was open. Without a
+    new upload, the recent file stays active until another source is chosen.
+    The upload signature is recorded once the file is loaded, so a rerun with
+    the same upload does not override a recent file picked afterwards.
+    """
+    is_new_upload = (
+        uploaded_signature is not None
+        and uploaded_signature != state.last_uploaded_csv_signature
+    )
+    if is_new_upload:
+        state.active_csv_source = "upload"
+        state.active_recent_csv_id = None
+        return None
+    if state.active_csv_source == "recent" and state.active_recent_csv_id is not None:
+        return state.active_recent_csv_id
+    if uploaded_signature is not None:
+        state.active_recent_csv_id = None
+    return None
+
+
+def open_recent_csv(entry_id: str) -> None:
+    """Make a recent file the active one and rerun the page."""
+    touch_recent_csv(entry_id)
+    state.active_recent_csv_id = entry_id
+    state.active_csv_source = "recent"
+    st.rerun()
+
+
 def render_data_section():
-    """Render the file-selection and active-dashboard section."""
+    """Render the file upload and the list of recent files."""
     with st.expander("Data", expanded=True):
         uploaded_file = st.file_uploader(
             "Upload CSV",
             type=["csv"],
             help="Upload a CSV file from your computer.",
         )
-        selected_recent_csv_id = None
-        uploaded_signature = None
-        if uploaded_file is not None:
-            uploaded_signature = upload_signature(uploaded_file)
-
         recent_csvs = list_recent_csvs()
         if recent_csvs:
-            st.caption("Recent CSVs")
-            top_recent_csvs = recent_csvs[:3]
-            older_recent_csvs = recent_csvs[3:]
+            render_recent_files(recent_csvs)
 
-            for entry in top_recent_csvs:
-                entry_id = entry.get("id")
-                filename = entry.get("filename", "Unnamed CSV")
-                if st.button(
-                    filename,
-                    key=f"recent_csv_{entry_id}",
-                    width="stretch",
-                    type=(
-                        "primary"
-                        if state.active_recent_csv_id == entry_id
-                        and state.active_csv_source == "recent"
-                        else "secondary"
-                    ),
-                ):
-                    selected_recent_csv_id = entry_id
-                    touch_recent_csv(entry_id)
-                    state.active_recent_csv_id = entry_id
-                    state.active_csv_source = "recent"
-                    st.rerun()
-                st.caption(format_recent_csv_details(entry))
+    signature = upload_signature(uploaded_file) if uploaded_file is not None else None
+    return uploaded_file, choose_active_source(state, signature)
 
-            if older_recent_csvs:
-                older_map = {
-                    entry.get("id"): entry.get("filename", "Unnamed CSV")
-                    for entry in older_recent_csvs
-                    if entry.get("id")
-                }
-                older_options = list(older_map)
-                selected_older_recent = st.selectbox(
-                    "Older recent CSVs",
-                    options=[None] + older_options,
-                    index=0,
-                    format_func=lambda value: (
-                        "Choose an older recent CSV"
-                        if value is None
-                        else older_map.get(value, "Unnamed CSV")
-                    ),
-                    help="Scroll through older recently opened CSVs.",
-                )
-                if selected_older_recent is not None:
-                    older_entry = next(
-                        (
-                            entry
-                            for entry in older_recent_csvs
-                            if entry.get("id") == selected_older_recent
-                        ),
-                        None,
-                    )
-                    if older_entry is not None:
-                        st.caption(format_recent_csv_details(older_entry))
-                    if st.button(
-                        "Open selected recent CSV",
-                        key="open_older_recent_csv",
-                        width="stretch",
-                    ):
-                        selected_recent_csv_id = selected_older_recent
-                        touch_recent_csv(selected_older_recent)
-                        state.active_recent_csv_id = selected_older_recent
-                        state.active_csv_source = "recent"
-                        st.rerun()
 
-        if recent_csvs:
-            st.caption(f"Recent files are kept in `{recent_dir()}`.")
-            if st.button("Clear recent files", key="clear_recent_csvs"):
-                clear_recent_csvs()
-                state.active_recent_csv_id = None
-                state.active_csv_source = "upload"
-                st.rerun()
-
-        if selected_recent_csv_id is None and (
+def render_recent_files(recent_csvs: list[dict]) -> None:
+    """Render the recent files: the latest as buttons, the others in a list."""
+    st.caption("Recent CSVs")
+    for entry in recent_csvs[:RECENT_BUTTONS]:
+        entry_id = entry.get("id")
+        is_active = (
             state.active_csv_source == "recent"
-            and state.active_recent_csv_id is not None
-        ):
-            selected_recent_csv_id = state.active_recent_csv_id
-        elif (
-            selected_recent_csv_id is None
-            and uploaded_file is not None
-            and uploaded_signature != state.last_uploaded_csv_signature
-        ):
-            state.active_csv_source = "upload"
-            state.active_recent_csv_id = None
-        elif (
-            selected_recent_csv_id is None
-            and uploaded_file is not None
-            and state.active_csv_source == "upload"
-        ):
-            state.active_recent_csv_id = None
-
-        st.markdown("##### Dashboard")
-        dashboards = state.dashboards
-        if dashboards:
-            name_by_id = {dashboard.id: dashboard.name for dashboard in dashboards}
-            ordered = sorted(dashboards, key=lambda dashboard: dashboard.name.lower())
-
-            options = [None] + [dashboard.id for dashboard in ordered]
-            selected_index = 0
-            if state.active_dashboard_id in options:
-                selected_index = options.index(state.active_dashboard_id)
-            active_id = st.selectbox(
-                "Active dashboard",
-                options=options,
-                format_func=lambda value: (
-                    "(none)" if value is None else name_by_id.get(value, "Unnamed")
-                ),
-                index=selected_index,
-            )
-            state.active_dashboard_id = active_id
-        else:
-            st.info("No dashboards yet. Build one in **Plot Builder** and save it.")
-            state.active_dashboard_id = None
-
-        st.caption(
-            "Dashboards are saved to `saved_configs.json` (re-rendered on the current CSV)."
+            and state.active_recent_csv_id == entry_id
         )
+        if st.button(
+            entry.get("filename", "Unnamed CSV"),
+            key=f"recent_csv_{entry_id}",
+            width="stretch",
+            type="primary" if is_active else "secondary",
+        ):
+            open_recent_csv(entry_id)
+        st.caption(format_recent_csv_details(entry))
 
-    return uploaded_file, selected_recent_csv_id
+    older = {
+        entry["id"]: entry for entry in recent_csvs[RECENT_BUTTONS:] if entry.get("id")
+    }
+    if older:
+        chosen = st.selectbox(
+            "Older recent CSVs",
+            options=[None, *older],
+            format_func=lambda value: (
+                "Choose an older recent CSV"
+                if value is None
+                else older[value].get("filename", "Unnamed CSV")
+            ),
+            help="Scroll through older recently opened CSVs.",
+        )
+        if chosen is not None:
+            st.caption(format_recent_csv_details(older[chosen]))
+            if st.button(
+                "Open selected recent CSV", key="open_older_recent_csv", width="stretch"
+            ):
+                open_recent_csv(chosen)
+
+    st.caption(f"Recent files are kept in `{recent_dir()}`.")
+    if st.button("Clear recent files", key="clear_recent_csvs"):
+        clear_recent_csvs()
+        state.active_recent_csv_id = None
+        state.active_csv_source = "upload"
+        st.rerun()
+
+
+def render_status_card(dataset: MainDatasetContext) -> None:
+    """Summarise the loaded file: its name, size and how its dates were read."""
+    with st.container(border=True):
+        st.markdown(f"**{escape_markdown(dataset.label or 'CSV')}**")
+        st.caption(f"{len(dataset.df):,} rows x {len(dataset.cols):,} columns")
+        if not dataset.date_col:
+            st.caption("No date column selected")
+        elif dataset.date_parse_candidate_count > 0:
+            rate = dataset.date_parse_success_count / dataset.date_parse_candidate_count
+            st.caption(f"Date column `{dataset.date_col}`: {rate:.0%} parsed")
+        else:
+            st.caption(f"Date column `{dataset.date_col}`: no values")
+        problems = len(dataset.read_report.warnings) if dataset.read_report else 0
+        if dataset.date_parse_warning:
+            problems += 1
+        if problems:
+            st.caption(f":orange[{problems} warning(s), see Preview]")
 
 
 def render_reading_options() -> ReadOptions:

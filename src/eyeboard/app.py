@@ -20,7 +20,12 @@ from eyeboard.ui.cache import load_table_cached, parse_table_cached
 from eyeboard.ui.context import MainDatasetContext, SidebarSelection
 from eyeboard.ui.header import render_dataset_summary, render_header
 from eyeboard.ui.session import state
-from eyeboard.ui.sidebar import render_date_options, render_sidebar, upload_signature
+from eyeboard.ui.sidebar import (
+    render_date_options,
+    render_sidebar,
+    render_status_card,
+    upload_signature,
+)
 from eyeboard.ui.tabs.compare import render_compare_tab
 from eyeboard.ui.tabs.dashboard import render_dashboard_tab
 from eyeboard.ui.tabs.dashboards_manager import render_dashboards_manager_tab
@@ -61,6 +66,8 @@ def main() -> None:
     dataset = build_main_dataset_context(
         df, read_report, source, read_options, date_settings
     )
+    with sidebar_selection.status_slot:
+        render_status_card(dataset)
     render_dataset_summary(dataset)
 
     tabs = st.tabs(

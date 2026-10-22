@@ -194,21 +194,21 @@ def render_date_filter(dataset: MainDatasetContext, key: str) -> pd.DataFrame:
 def render_series_styling(
     y_cols: list[str], y2_cols: list[str], start: PlotSpec, key_prefix: str
 ) -> dict[str, dict[str, Any]]:
-    """Render per-series colour, width and dash; return them only when customised.
+    """Render per-series colour, width and dash; return them only when customized.
 
-    The widgets always exist, so switching "Customise" off and on again does not
+    The widgets always exist, so switching "Customize" off and on again does not
     lose what was set; only a switched-on customisation is saved with the plot.
     """
     series_list = list(dict.fromkeys([*y_cols, *y2_cols]))
     with st.expander("Series colours and lines", expanded=bool(start.series_style)):
-        customise = st.toggle(
-            "Customise series",
+        customize = st.toggle(
+            "Customize series",
             value=bool(start.series_style),
-            key=f"{key_prefix}_customise",
+            key=f"{key_prefix}_customize",
             help="Off: the theme's colours are used and nothing is saved with the plot.",
         )
         if not series_list:
-            st.info("Select Y columns to customise them.")
+            st.info("Select Y columns to customize them.")
         style_map: dict[str, dict[str, Any]] = {}
         for idx, series_name in enumerate(series_list):
             saved = start.series_style.get(series_name) or SeriesStyle()
@@ -222,7 +222,7 @@ def render_series_styling(
                 or DEFAULT_SERIES_COLORS[idx % len(DEFAULT_SERIES_COLORS)],
                 key=f"{prefix}_color",
                 label_visibility="collapsed",
-                disabled=not customise,
+                disabled=not customize,
             )
             width = c2.slider(
                 "Width",
@@ -231,7 +231,7 @@ def render_series_styling(
                 int(saved.width or 2),
                 key=f"{prefix}_width",
                 label_visibility="collapsed",
-                disabled=not customise,
+                disabled=not customize,
             )
             dash = c3.selectbox(
                 "Style",
@@ -239,10 +239,10 @@ def render_series_styling(
                 index=DASH_STYLES.index(saved.dash or "solid"),
                 key=f"{prefix}_dash",
                 label_visibility="collapsed",
-                disabled=not customise,
+                disabled=not customize,
             )
             style_map[series_name] = {"color": color, "width": width, "dash": dash}
-    return style_map if customise else {}
+    return style_map if customize else {}
 
 
 def build_spec(choices: PlotChoices) -> tuple[PlotSpec | None, list[str]]:

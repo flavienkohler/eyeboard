@@ -126,7 +126,7 @@ def test_the_plot_tab_draws_a_preview_and_keeps_styling_out_of_the_sidebar(workd
     assert not list(at.sidebar.color_picker)
 
 
-def test_a_plot_is_saved_without_series_styles_unless_customised(workdir):
+def test_a_plot_is_saved_without_series_styles_unless_customized(workdir):
     at = _run(select_recent=True)
 
     _save_plot(at)
@@ -137,9 +137,9 @@ def test_a_plot_is_saved_without_series_styles_unless_customised(workdir):
     assert dashboard["plots"][0]["series_style"] == {}
 
 
-def test_customised_series_styles_are_saved_with_the_plot(workdir):
+def test_customized_series_styles_are_saved_with_the_plot(workdir):
     at = _run(select_recent=True)
-    next(t for t in at.toggle if t.label == "Customise series").set_value(True).run()
+    next(t for t in at.toggle if t.label == "Customize series").set_value(True).run()
 
     _save_plot(at)
 

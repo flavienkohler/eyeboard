@@ -23,6 +23,14 @@
 - EyeBoard is now an installable package with a command: `uv run eyeboard` (extra options go to Streamlit). The `app/` folder, the `sys.path` tricks and the PowerShell launcher are gone; `run_app.bat` is a short wrapper that checks for `uv`. Supported Python is 3.11 to 3.13, and the minimum versions of the dependencies (Streamlit 1.49, pandas 2.2.2, plotly 5.18, pydantic 2.7) are tested.
 - All files now live in one data folder (`%APPDATA%/eyeboard` on Windows, or `EYEBOARD_HOME`) instead of the working directory. Dashboards are saved as `dashboards.json`; files from earlier versions are copied there on first start (originals untouched). The sidebar shows where recent files are kept and can clear them. A recent-files index can no longer point outside its folder.
 - Every plot is now built by one code path (with or without a secondary axis or a "color by" column), which removes visible inconsistencies: areas are overlapping and filled and bars are grouped everywhere, "color by" now works together with a secondary axis (and keeps several Y series apart, which it did not before), styles apply the same way on both axes, the legend is horizontal, and axis titles default to the series name. Traces with more than 5,000 points use WebGL for smooth zooming.
+- The interface is reorganised in four tabs: Explore, Plot, Dashboards and Compare. The sidebar is for data only (upload, recent files, reading options, and a card describing the loaded file).
+- Explore shows one table with the type, missing share, exact distinct count, range and checks of every column, and a search box that also filters the column plots. The read report lists what was detected on its own, marked `(auto)`, including the date order that was used (`day first`, `month first`, `year first`, or ambiguous), and a banner warns about numbers written with a decimal comma.
+- The Plot tab puts the controls beside the figure. Series colors are saved only when "Customize series" is on, so default colors no longer end up in saved dashboards. The same form is used to edit a saved plot.
+- Dashboards and their management are one tab: plots can be moved up and down, removing a plot or deleting a dashboard asks for confirmation, names must be unique (an imported duplicate is numbered), and an import is recognized by its content.
+- Compare takes the loaded file as A and a second file as B, draws every plot of the chosen dashboards as an overlay or side by side, and gives RMSE, MAE, bias and correlation per series, lined up by timestamps or by elapsed time.
+- Added synthetic demo data (a "Try the demo data" button, and the files in `examples/`).
+- Charts can be exported as standalone HTML, plotted data and comparison metrics as CSV, and as PNG through the chart toolbar.
+- Added a GitHub Actions workflow that runs ruff and the tests on Python 3.11 to 3.13.
 
 ## 0.2.0 - 2026-07-01
 

@@ -14,6 +14,15 @@ def test_the_command_line_runs_the_script_and_passes_extra_arguments():
     assert args[-2:] == ["--server.port", "8600"]
 
 
+def test_the_app_listens_on_this_machine_only_unless_told_otherwise():
+    default = cli.build_streamlit_args([])
+    wider = cli.build_streamlit_args(["--server.address", "0.0.0.0"])
+
+    assert "--server.address=localhost" in default
+    # A later option wins over an earlier one, so the user's choice is kept.
+    assert wider.index("--server.address=localhost") < wider.index("0.0.0.0")
+
+
 def test_main_hands_over_to_streamlit(monkeypatch):
     seen = {}
 

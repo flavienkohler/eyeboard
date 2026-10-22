@@ -1,4 +1,4 @@
-"""Dashboard tab renderer."""
+"""The dashboard view: saved dashboards drawn on the current dataset."""
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -18,16 +18,12 @@ from eyeboard.ui.session import state
 from eyeboard.ui.text import escape_markdown
 
 
-def render_dashboard_tab(dataset: MainDatasetContext) -> None:
-    """Render the dashboard tab."""
-    st.markdown("#### Dashboard")
-    st.caption(
-        "Select one or more saved dashboards. Each dashboard renders its saved plots on the current dataset."
-    )
+def render_dashboard_view(dataset: MainDatasetContext) -> None:
+    """Render the selected dashboards on the current dataset."""
 
     dashboards = state.dashboards
     if not dashboards:
-        st.info("No saved dashboards yet. Build one in **Plot** and save it.")
+        st.info("No saved dashboards yet. Build one in the **Plot** tab and save it.")
         return
 
     ordered = sorted(dashboards, key=lambda dashboard: dashboard.name.lower())
@@ -39,7 +35,7 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
         [active_id] if active_id in dashboard_options else dashboard_options[:1]
     )
     selected_dashboard_ids = st.multiselect(
-        "Dashboards to display",
+        "Dashboards to show",
         options=dashboard_options,
         default=default_selected,
         format_func=lambda value: dashboards_by_id[value].name,
@@ -125,7 +121,7 @@ def render_dashboard_tab(dataset: MainDatasetContext) -> None:
                         else:
                             st.warning(warning)
                     st.caption(
-                        "Tip: You can fix this by editing the dashboard JSON in Dashboards Manager."
+                        "Tip: You can fix this by editing the dashboard under Manage dashboards."
                     )
 
             if combined_fig is None:

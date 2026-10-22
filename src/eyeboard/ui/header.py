@@ -38,7 +38,7 @@ def render_dataset_summary(dataset: MainDatasetContext) -> None:
                 st.rerun()
         with tip_col:
             st.caption(
-                "Tip: Use **Dashboard** for consistent plots across different CSVs."
+                "Tip: Use **Dashboards** for consistent plots across different CSVs."
             )
 
     m1, m2, m3, m4 = st.columns(4)

@@ -7,8 +7,11 @@ from eyeboard.services.dashboards import (
     add_plot_to_dashboards,
     find_dashboard_by_name,
     load_dashboards,
+    move_dashboard_plot,
+    name_is_taken,
     remove_dashboard_plot,
     save_dashboards,
+    unique_name,
     update_dashboard_plot,
 )
 
@@ -149,3 +152,35 @@ def test_add_plot_to_dashboards_creates_a_new_dashboard_for_a_new_name():
 
     assert created and target.name == "Other"
     assert dashboards == [board, target]
+
+
+def test_move_dashboard_plot_swaps_neighbours_and_stops_at_the_ends():
+    board = make_dashboard(
+        plots=[make_plot(id="a"), make_plot(id="b"), make_plot(id="c")]
+    )
+
+    down = move_dashboard_plot(board, "a", +1)
+    up = move_dashboard_plot(board, "c", -1)
+
+    assert [p.id for p in down.plots] == ["b", "a", "c"]
+    assert [p.id for p in up.plots] == ["a", "c", "b"]
+    assert move_dashboard_plot(board, "a", -1) is board
+    assert move_dashboard_plot(board, "c", +1) is board
+    assert move_dashboard_plot(board, "missing", +1) is board
+    assert [p.id for p in board.plots] == ["a", "b", "c"]
+
+
+def test_names_are_compared_ignoring_case_and_the_dashboard_itself():
+    boards = [make_dashboard("d1", "Flow"), make_dashboard("d2", "Pressure")]
+
+    assert name_is_taken(boards, " flow ")
+    assert not name_is_taken(boards, "Flow", ignore_id="d1")
+    assert name_is_taken(boards, "Flow", ignore_id="d2")
+    assert not name_is_taken(boards, "Temperature")
+
+
+def test_unique_name_numbers_a_taken_name():
+    boards = [make_dashboard("d1", "Flow"), make_dashboard("d2", "Flow (2)")]
+
+    assert unique_name(boards, "Flow") == "Flow (3)"
+    assert unique_name(boards, "Other") == "Other"

@@ -31,8 +31,7 @@ from eyeboard.ui.sidebar import (
     upload_signature,
 )
 from eyeboard.ui.tabs.compare import render_compare_tab
-from eyeboard.ui.tabs.dashboard import render_dashboard_tab
-from eyeboard.ui.tabs.dashboards_manager import render_dashboards_manager_tab
+from eyeboard.ui.tabs.dashboards import render_dashboards_tab
 from eyeboard.ui.tabs.explore import render_explore_tab
 from eyeboard.ui.tabs.plot import render_plot_tab
 from eyeboard.ui.text import escape_markdown
@@ -78,9 +77,8 @@ def main() -> None:
         [
             "Explore",
             "Plot",
-            "Dashboard",
-            "Compare (2 CSVs)",
-            "Dashboards Manager",
+            "Dashboards",
+            "Compare",
         ]
     )
 
@@ -89,11 +87,9 @@ def main() -> None:
     with tabs[1]:
         render_plot_tab(dataset)
     with tabs[2]:
-        render_dashboard_tab(dataset)
+        render_dashboards_tab(dataset)
     with tabs[3]:
         render_compare_tab(dataset)
-    with tabs[4]:
-        render_dashboards_manager_tab(dataset)
 
 
 def render_legacy_import_notice(imported: LegacyImport) -> None:

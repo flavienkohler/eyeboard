@@ -59,7 +59,7 @@ def test_with_a_file_every_tab_renders_without_errors(workdir):
     assert [tab.label for tab in at.tabs][:3] == [
         "Explore",
         "Plot",
-        "Dashboard",
+        "Dashboards",
     ]
     metrics = {m.label: m.value for m in at.metric}
     assert metrics["Rows"] == "28" and metrics["Columns"] == "3"
@@ -161,7 +161,9 @@ def test_saving_twice_adds_a_second_plot_to_the_same_dashboard(workdir):
 def test_a_saved_plot_is_edited_with_the_same_form_filled_in(workdir):
     _add_dashboard_and_second_csv(workdir)
     at = _run(select_recent=True)
+    assert not any((m.key or "").startswith("edit_") for m in at.multiselect)
 
+    next(b for b in at.button if b.label == "Edit").click().run()
     y_axis = next(
         m
         for m in at.multiselect
@@ -180,6 +182,74 @@ def test_a_saved_plot_is_edited_with_the_same_form_filled_in(workdir):
     assert dashboard["plots"][0]["title"] == "Edited"
     assert dashboard["plots"][0]["y_cols"] == ["flow"]
     assert dashboard["plots"][0]["id"]  # the plot keeps its own id
+
+
+def _two_plot_dashboard(workdir):
+    from helpers import make_dashboard, make_plot
+
+    from eyeboard.dashboards.document import serialize_document
+
+    boards = [
+        make_dashboard(
+            "d1",
+            "Flow board",
+            plots=[
+                make_plot(id="p1", title="First", x_col="date", y_cols=["flow"]),
+                make_plot(id="p2", title="Second", x_col="date", y_cols=["temp"]),
+            ],
+        ),
+        make_dashboard("d2", "Other board"),
+    ]
+    (workdir / "dashboards.json").write_text(
+        serialize_document(boards), encoding="utf-8"
+    )
+
+
+def _plot_titles(workdir, index=0):
+    return [p["title"] for p in _saved_dashboards(workdir)[index]["plots"]]
+
+
+def test_plots_can_be_moved_within_a_dashboard(workdir):
+    _two_plot_dashboard(workdir)
+    at = _run(select_recent=True)
+
+    next(b for b in at.button if b.key == "down_p1").click().run()
+
+    assert _plot_titles(workdir) == ["Second", "First"]
+
+
+def test_removing_a_plot_needs_the_confirmation_button(workdir):
+    _two_plot_dashboard(workdir)
+    at = _run(select_recent=True)
+    assert _plot_titles(workdir) == ["First", "Second"]
+
+    next(b for b in at.button if b.key == "confirm_rm_p1").click().run()
+
+    assert _plot_titles(workdir) == ["Second"]
+
+
+def test_deleting_a_dashboard_needs_the_confirmation_button(workdir):
+    _two_plot_dashboard(workdir)
+    at = _run(select_recent=True)
+    assert len(_saved_dashboards(workdir)) == 2
+
+    next(b for b in at.button if b.key == "confirm_delete_dashboard").click().run()
+
+    assert [d["name"] for d in _saved_dashboards(workdir)] == ["Other board"]
+
+
+def test_renaming_to_a_taken_name_is_refused(workdir):
+    _two_plot_dashboard(workdir)
+    at = _run(select_recent=True)
+
+    next(t for t in at.text_input if t.label == "Rename").input("other BOARD").run()
+    next(b for b in at.button if b.label == "Apply rename").click().run()
+
+    assert any("already exists" in e.value for e in at.error)
+    assert [d["name"] for d in _saved_dashboards(workdir)] == [
+        "Flow board",
+        "Other board",
+    ]
 
 
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):

@@ -137,3 +137,36 @@ def add_plot_to_dashboards(
         updated,
         False,
     )
+
+
+def move_dashboard_plot(dashboard: Dashboard, plot_id: str, offset: int) -> Dashboard:
+    """Return a dashboard with one plot moved up (negative) or down (positive).
+
+    A move past either end, or an unknown plot id, leaves the order unchanged.
+    """
+    plots = list(dashboard.plots)
+    index = next((i for i, plot in enumerate(plots) if plot.id == plot_id), None)
+    if index is None:
+        return dashboard
+    target = index + offset
+    if not 0 <= target < len(plots):
+        return dashboard
+    plots[index], plots[target] = plots[target], plots[index]
+    return dashboard.model_copy(update={"plots": plots})
+
+
+def name_is_taken(
+    dashboards: list[Dashboard], name: str, *, ignore_id: str | None = None
+) -> bool:
+    """Tell whether another dashboard already has this name (ignoring case)."""
+    other = find_dashboard_by_name(dashboards, name)
+    return other is not None and other.id != ignore_id
+
+
+def unique_name(dashboards: list[Dashboard], name: str) -> str:
+    """Return the name, or the name followed by (2), (3)... when it is taken."""
+    candidate, number = name.strip(), 1
+    while name_is_taken(dashboards, candidate):
+        number += 1
+        candidate = f"{name.strip()} ({number})"
+    return candidate

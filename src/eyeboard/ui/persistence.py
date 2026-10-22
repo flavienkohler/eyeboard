@@ -22,5 +22,5 @@ def persist_dashboards_with_feedback(
     state.dashboards = new_dashboards
     prune_recent_dashboard_ids(state)
     if success_message:
-        st.success(success_message)
+        st.toast(success_message)  # survives the rerun that usually follows
     return True

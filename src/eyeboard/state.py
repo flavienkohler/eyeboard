@@ -81,6 +81,7 @@ class AppState:
     # Small bits of per-tab memory.
     last_imported_json_signature = StateKey[str | None](lambda: None)
     plot_save_target = StateKey[str | None](lambda: None)
+    editing_plot_id = StateKey[str | None](lambda: None)
 
     # No instance attributes other than the store: a mistyped name is an error.
     __slots__ = ("store",)

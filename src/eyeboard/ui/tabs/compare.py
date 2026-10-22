@@ -77,7 +77,7 @@ def _parse_compare_dataset(
 
 def render_compare_tab(dataset: MainDatasetContext) -> None:
     """Render the compare-two-datasets tab."""
-    st.markdown("#### Compare (2 CSVs)")
+    st.markdown("#### Compare")
     st.caption("Load two CSVs and compare selected saved plot dashboards side by side.")
 
     cmp_left, cmp_right = st.columns(2, vertical_alignment="top")

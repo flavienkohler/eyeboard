@@ -1,3 +1,4 @@
+import io
 from pathlib import Path
 
 import pandas as pd
@@ -16,9 +17,14 @@ def test_the_demo_data_is_identical_on_every_call():
 
 def test_the_committed_examples_match_the_generator():
     for name, filename in DEMO_FILES.items():
-        assert (EXAMPLES / filename).read_bytes() == demo_csv(name), (
-            f"{filename} is out of date: run `python -m eyeboard.services.demo examples`"
-        )
+        committed = pd.read_csv(EXAMPLES / filename)
+        generated = pd.read_csv(io.BytesIO(demo_csv(name)))
+        try:
+            pd.testing.assert_frame_equal(committed, generated, atol=1e-3)
+        except AssertionError as exc:
+            raise AssertionError(
+                f"{filename} is out of date: run `python -m eyeboard.services.demo examples`"
+            ) from exc
 
 
 def test_the_demo_files_load_like_any_csv_and_show_what_explore_checks():

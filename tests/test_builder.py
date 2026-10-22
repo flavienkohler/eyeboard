@@ -177,7 +177,7 @@ def test_theme_title_margin_and_legend_are_set_once_for_every_figure(df):
     titled = make_figure(df, spec(title="Flow", y2_cols=["c"]))
 
     assert plain.layout.template.layout.paper_bgcolor == "rgb(17,17,17)"
-    assert plain.layout.margin.t == 20 and titled.layout.margin.t == 50
+    assert plain.layout.margin.t == 20 and titled.layout.margin.t == 85
     assert titled.layout.title.text == "Flow"
     assert plain.layout.title.text is None
     for fig in (plain, titled):

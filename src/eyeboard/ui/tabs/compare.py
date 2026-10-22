@@ -179,9 +179,8 @@ def render_dashboard_comparison(
     with st.container(border=True):
         st.markdown(f"#### {escape_markdown(dashboard.name)}")
         for index, spec in enumerate(dashboard.plots, start=1):
-            st.markdown(
-                f"**{escape_markdown(spec.title or t('Plot {index}', index=index))}**"
-            )
+            if not spec.title:  # a titled plot shows its title in the chart itself
+                st.markdown(f"**{t('Plot {index}', index=index)}**")
             key = f"cmp_{dashboard.id}_{spec.id}"
             render_plot_comparison(spec, a, b, mode, alignment, key)
 

@@ -18,6 +18,8 @@ WEBGL_MIN_POINTS = 5_000
 PRIMARY_AXIS = "y"
 SECONDARY_AXIS = "y2"
 EMPTY_GROUP_LABEL = "(empty)"
+# Room above the plot for a title and a legend of up to two rows (overlays have two).
+TITLED_TOP_MARGIN = 85
 
 
 def _groups(
@@ -96,7 +98,12 @@ def make_figure(df: pd.DataFrame, spec: PlotSpec) -> go.Figure:
             )
 
     fig.update_layout(
-        margin={"l": 10, "r": 10, "t": 50 if spec.title else 20, "b": 10},
+        margin={
+            "l": 10,
+            "r": 10,
+            "t": TITLED_TOP_MARGIN if spec.title else 20,
+            "b": 10,
+        },
         legend={
             "orientation": "h",
             "yanchor": "bottom",
@@ -109,7 +116,10 @@ def make_figure(df: pd.DataFrame, spec: PlotSpec) -> go.Figure:
         barmode="group",
     )
     if spec.title:
-        fig.update_layout(title=spec.title)
+        # Top left, above the legend, which sits just over the plot area.
+        fig.update_layout(
+            title={"text": spec.title, "x": 0, "y": 0.99, "yanchor": "top"}
+        )
     if spec.y2_cols:
         fig.update_layout(
             yaxis2={

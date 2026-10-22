@@ -3,6 +3,7 @@
 import streamlit as st
 
 from eyeboard.config import APP_HEADER_SUBTITLE, APP_HEADER_TITLE
+from eyeboard.services.read_summary import detected_settings
 from eyeboard.ui.context import MainDatasetContext
 from eyeboard.ui.text import escape_markdown
 
@@ -80,12 +81,22 @@ def render_read_report(dataset: MainDatasetContext) -> None:
                 f"{read_report.source_kind}: `{read_report.source_label or dataset.label}`"
             )
 
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("Separator", read_report.separator_label)
-        c2.metric("Decimal", read_report.decimal_label)
-        c3.metric("Encoding", read_report.encoding_label)
-        c4.metric("Header", read_report.header_label)
-        c5.metric("Date Parse", parse_summary)
+        by_name = {
+            setting.name: setting.text()
+            for setting in detected_settings(
+                read_report,
+                dataset.read_options,
+                dataset.date_settings,
+                dataset.date_order,
+            )
+        }
+        c1, c2, c3, c4, c5, c6 = st.columns(6)
+        c1.metric("Separator", by_name["Separator"])
+        c2.metric("Decimal", by_name["Decimal"])
+        c3.metric("Encoding", by_name["Encoding"])
+        c4.metric("Header", by_name["Header"])
+        c5.metric("Date order", by_name.get("Date order", "n/a"))
+        c6.metric("Date parse", parse_summary)
 
         date_details = (
             f"Date column: `{dataset.date_col}` | Mode: `{dataset.date_parse_mode}`"
@@ -94,7 +105,7 @@ def render_read_report(dataset: MainDatasetContext) -> None:
         )
         if dataset.date_format:
             date_details += f" | Format override: `{dataset.date_format}`"
-        st.caption(date_details)
+        st.caption(date_details + ". (auto) means EyeBoard found it, not you.")
 
         for warning in read_report.warnings:
             st.warning(warning)

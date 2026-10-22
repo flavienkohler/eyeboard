@@ -32,3 +32,17 @@ def test_parse_dates_flexible_prefers_explicit_format_override():
         "2024-03-31",
         "2024-04-01",
     ]
+
+
+def test_the_date_order_that_was_used_is_reported():
+    from eyeboard.services.date_parsing import parse_date_series_with_order
+
+    clear = pd.Series(["25/03/2020", "01/04/2020"])
+    ambiguous = pd.Series(["01/02/2020", "03/04/2020"])
+
+    assert parse_date_series_with_order(clear)[1] == "day first"
+    assert parse_date_series_with_order(ambiguous)[1] == "month first (ambiguous)"
+    assert (
+        parse_date_series_with_order(clear, date_format="%d/%m/%Y")[1]
+        == "format override"
+    )

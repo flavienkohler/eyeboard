@@ -57,13 +57,15 @@ def test_with_a_file_every_tab_renders_without_errors(workdir):
 
     assert not at.exception and not at.error
     assert [tab.label for tab in at.tabs][:3] == [
-        "Preview",
+        "Explore",
         "Plot Builder",
         "Dashboard",
     ]
     metrics = {m.label: m.value for m in at.metric}
     assert metrics["Rows"] == "28" and metrics["Columns"] == "3"
-    assert metrics["Encoding"] == "UTF-8"
+    assert metrics["Encoding"] == "UTF-8 (auto)"
+    assert metrics["Separator"] == "Semicolon (;) (auto)"
+    assert metrics["Date order"] == "day first (auto)"
     assert "Date parsing" in [e.label for e in at.sidebar.expander]
 
 
@@ -72,8 +74,35 @@ def test_the_sidebar_shows_the_loaded_file_and_no_dashboard_picker(workdir):
 
     captions = [c.value for c in at.sidebar.caption]
     assert "28 rows x 3 columns" in captions
-    assert "Date column `date`: 100% parsed" in captions
+    assert "Dates parsed: 100%" in captions
+    assert any("Separator: Semicolon (;) (auto)" in c for c in captions)
     assert "Active dashboard" not in [s.label for s in at.sidebar.selectbox]
+
+
+def test_explore_flags_numbers_written_with_a_decimal_comma(workdir):
+    at = _run(select_recent=True)
+
+    warnings = [w.value for w in at.warning]
+    assert any("decimal comma" in w and "`flow`" in w for w in warnings)
+
+
+def test_explore_lists_every_column_with_its_checks(workdir):
+    at = _run(select_recent=True)
+
+    frames = [df.value for df in at.dataframe]
+    columns_table = next(f for f in frames if "distinct" in f.columns)
+    assert list(columns_table["column"]) == ["date", "flow", "temp"]
+    assert columns_table.loc[0, "type"] == "date"
+
+
+def test_searching_columns_filters_the_table(workdir):
+    at = _run(select_recent=True)
+
+    next(t for t in at.text_input if t.label == "Search columns").input("flo").run()
+
+    frames = [df.value for df in at.dataframe]
+    columns_table = next(f for f in frames if "distinct" in f.columns)
+    assert list(columns_table["column"]) == ["flow"]
 
 
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):

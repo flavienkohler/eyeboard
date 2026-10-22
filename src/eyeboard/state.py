@@ -70,6 +70,14 @@ class AppState:
     read_date_mode = StateKey[str](lambda: "Auto-detect")
     read_date_format = StateKey[str](str)
 
+    # Explore tab (also the keys of its widgets).
+    explore_signature = StateKey[str | None](lambda: None)
+    explore_filter = StateKey[str](str)
+    explore_show_rows = StateKey[bool](lambda: False)
+    explore_mini_plots = StateKey[bool](lambda: False)
+    explore_page_size = StateKey[int](lambda: 18)
+    explore_page = StateKey[int](lambda: 1)
+
     # Small bits of per-tab memory.
     last_imported_json_signature = StateKey[str | None](lambda: None)
     plot_builder_last_dashboard_id = StateKey[str | None](lambda: None)

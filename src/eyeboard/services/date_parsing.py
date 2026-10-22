@@ -71,20 +71,25 @@ def to_datetime_safely(series: pd.Series, **kwargs) -> pd.Series:
         return pd.to_datetime(series, errors="coerce", **kwargs)
 
 
-def parse_date_series(
+def parse_date_series_with_order(
     series: pd.Series,
     *,
     date_mode: str = "Auto-detect",
     date_format: str | None = None,
-) -> pd.Series:
-    """Parse a date series with auto-detection and optional manual override."""
+) -> tuple[pd.Series, str]:
+    """Parse a date series and say which date order was used.
+
+    The order is "format override", "day first" or "month first". In
+    auto-detection it is followed by "(ambiguous)" when both orders parse
+    equally well and nothing in the values settles it (every day is 12 or less).
+    """
     if date_format:
-        return to_datetime_safely(series, format=date_format)
+        return to_datetime_safely(series, format=date_format), "format override"
 
     if date_mode == "Day-first":
-        return to_datetime_safely(series, dayfirst=True)
+        return to_datetime_safely(series, dayfirst=True), "day first"
     if date_mode == "Month-first":
-        return to_datetime_safely(series, dayfirst=False)
+        return to_datetime_safely(series, dayfirst=False), "month first"
 
     inferred_dayfirst = infer_dayfirst_from_series(series)
     candidate_orders = (
@@ -96,10 +101,12 @@ def parse_date_series(
     best_parsed: pd.Series | None = None
     best_score = -1.0
     best_dayfirst: bool | None = None
+    scores: list[float] = []
 
     for candidate_dayfirst in candidate_orders:
         parsed = to_datetime_safely(series, dayfirst=candidate_dayfirst)
         score = float(parsed.notna().mean())
+        scores.append(score)
         if score > best_score:
             best_parsed = parsed
             best_score = score
@@ -115,9 +122,52 @@ def parse_date_series(
             best_parsed = parsed
             best_dayfirst = candidate_dayfirst
 
-    if best_parsed is not None:
-        return best_parsed
-    return to_datetime_safely(series)
+    if best_parsed is None:
+        return to_datetime_safely(series), "month first"
+
+    label = "day first" if best_dayfirst else "month first"
+    if inferred_dayfirst is None and abs(scores[0] - scores[1]) < 1e-9:
+        label += " (ambiguous)"
+    return best_parsed, label
+
+
+def parse_date_series(
+    series: pd.Series,
+    *,
+    date_mode: str = "Auto-detect",
+    date_format: str | None = None,
+) -> pd.Series:
+    """Parse a date series with auto-detection and optional manual override."""
+    return parse_date_series_with_order(
+        series, date_mode=date_mode, date_format=date_format
+    )[0]
+
+
+def parse_dates_with_order(
+    df: pd.DataFrame,
+    date_col: str | None,
+    *,
+    date_mode: str = "Auto-detect",
+    date_format: str | None = None,
+) -> tuple[pd.DataFrame, str | None]:
+    """Parse a dataframe date column; also return the date order that was used."""
+    if date_col is None or date_col not in df.columns:
+        return df, None
+
+    parsed_df = df.copy()
+    try:
+        parsed_df[date_col], order = parse_date_series_with_order(
+            parsed_df[date_col],
+            date_mode=date_mode,
+            date_format=date_format,
+        )
+    except (ValueError, TypeError, OverflowError):
+        LOGGER.warning(
+            "Date parsing of column '%s' failed; using generic parsing.", date_col
+        )
+        parsed_df[date_col] = to_datetime_safely(parsed_df[date_col])
+        order = "generic"
+    return parsed_df, order
 
 
 def parse_dates_flexible(
@@ -128,19 +178,6 @@ def parse_dates_flexible(
     date_format: str | None = None,
 ) -> pd.DataFrame:
     """Parse a dataframe date column with auto-detection and manual overrides."""
-    if date_col is None or date_col not in df.columns:
-        return df
-
-    parsed_df = df.copy()
-    try:
-        parsed_df[date_col] = parse_date_series(
-            parsed_df[date_col],
-            date_mode=date_mode,
-            date_format=date_format,
-        )
-    except (ValueError, TypeError, OverflowError):
-        LOGGER.warning(
-            "Date parsing of column '%s' failed; using generic parsing.", date_col
-        )
-        parsed_df[date_col] = to_datetime_safely(parsed_df[date_col])
-    return parsed_df
+    return parse_dates_with_order(
+        df, date_col, date_mode=date_mode, date_format=date_format
+    )[0]

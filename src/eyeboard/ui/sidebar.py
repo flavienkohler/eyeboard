@@ -6,6 +6,7 @@ from eyeboard.config import DATE_PARSE_MODES, ENCODING_OPTIONS
 from eyeboard.models import DateSettings, ReadOptions
 from eyeboard.paths import recent_dir
 from eyeboard.services.columns import guess_date_column
+from eyeboard.services.read_summary import detected_settings
 from eyeboard.services.recent_csvs import (
     clear_recent_csvs,
     format_recent_csv_details,
@@ -132,22 +133,26 @@ def render_recent_files(recent_csvs: list[dict]) -> None:
 
 
 def render_status_card(dataset: MainDatasetContext) -> None:
-    """Summarise the loaded file: its name, size and how its dates were read."""
+    """Summarise the loaded file: its size, how it was read and any warnings."""
     with st.container(border=True):
         st.markdown(f"**{escape_markdown(dataset.label or 'CSV')}**")
         st.caption(f"{len(dataset.df):,} rows x {len(dataset.cols):,} columns")
-        if not dataset.date_col:
-            st.caption("No date column selected")
-        elif dataset.date_parse_candidate_count > 0:
+        if dataset.read_report is not None:
+            settings = detected_settings(
+                dataset.read_report,
+                dataset.read_options,
+                dataset.date_settings,
+                dataset.date_order,
+            )
+            st.caption("  \n".join(f"{s.name}: {s.text()}" for s in settings))
+        if dataset.date_col and dataset.date_parse_candidate_count > 0:
             rate = dataset.date_parse_success_count / dataset.date_parse_candidate_count
-            st.caption(f"Date column `{dataset.date_col}`: {rate:.0%} parsed")
-        else:
-            st.caption(f"Date column `{dataset.date_col}`: no values")
+            st.caption(f"Dates parsed: {rate:.0%}")
         problems = len(dataset.read_report.warnings) if dataset.read_report else 0
-        if dataset.date_parse_warning:
-            problems += 1
+        problems += bool(dataset.date_parse_warning)
+        problems += sum(1 for p in dataset.profiles if p.decimal_comma)
         if problems:
-            st.caption(f":orange[{problems} warning(s), see Preview]")
+            st.caption(f":orange[{problems} warning(s), see Explore]")
 
 
 def render_reading_options() -> ReadOptions:

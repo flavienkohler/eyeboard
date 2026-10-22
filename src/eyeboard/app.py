@@ -16,7 +16,11 @@ from eyeboard.services.recent_csvs import (
     remember_recent_csv,
 )
 from eyeboard.state import initialize_state
-from eyeboard.ui.cache import load_table_cached, parse_table_cached
+from eyeboard.ui.cache import (
+    load_table_cached,
+    parse_table_cached,
+    profile_table_cached,
+)
 from eyeboard.ui.context import MainDatasetContext, SidebarSelection
 from eyeboard.ui.header import render_dataset_summary, render_header
 from eyeboard.ui.session import state
@@ -29,8 +33,8 @@ from eyeboard.ui.sidebar import (
 from eyeboard.ui.tabs.compare import render_compare_tab
 from eyeboard.ui.tabs.dashboard import render_dashboard_tab
 from eyeboard.ui.tabs.dashboards_manager import render_dashboards_manager_tab
+from eyeboard.ui.tabs.explore import render_explore_tab
 from eyeboard.ui.tabs.plot_builder import render_plot_builder_tab
-from eyeboard.ui.tabs.preview import render_preview_tab
 from eyeboard.ui.text import escape_markdown
 
 
@@ -72,7 +76,7 @@ def main() -> None:
 
     tabs = st.tabs(
         [
-            "Preview",
+            "Explore",
             "Plot Builder",
             "Dashboard",
             "Compare (2 CSVs)",
@@ -81,7 +85,7 @@ def main() -> None:
     )
 
     with tabs[0]:
-        render_preview_tab(dataset)
+        render_explore_tab(dataset)
     with tabs[1]:
         render_plot_builder_tab(dataset)
     with tabs[2]:
@@ -181,4 +185,6 @@ def build_main_dataset_context(
         date_parse_mode=date_settings.mode,
         date_format=date_settings.format,
         date_parse_warning=parsed.date_parse_warning,
+        date_order=parsed.date_order,
+        profiles=profile_table_cached(source, read_options, date_settings, parsed.df),
     )

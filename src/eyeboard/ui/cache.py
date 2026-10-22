@@ -18,6 +18,7 @@ from eyeboard.services.dataset import (
     load_table,
     parse_table,
 )
+from eyeboard.services.profile import ColumnProfile, profile_columns
 
 MAX_CACHED_TABLES = 6
 
@@ -67,3 +68,23 @@ def parse_table_cached(
 ) -> ParsedTable:
     """Parse the date column of a loaded table (cached)."""
     return _parse_table_cached(source.key, options, settings, df)
+
+
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHED_TABLES)
+def _profile_table_cached(
+    source_key: str,
+    options: ReadOptions,
+    settings: DateSettings,
+    _df: pd.DataFrame,
+) -> list[ColumnProfile]:
+    return profile_columns(_df)
+
+
+def profile_table_cached(
+    source: DataSource,
+    options: ReadOptions,
+    settings: DateSettings,
+    parsed_df: pd.DataFrame,
+) -> list[ColumnProfile]:
+    """Profile the columns of a parsed table (cached)."""
+    return _profile_table_cached(source.key, options, settings, parsed_df)

@@ -13,5 +13,5 @@ def test_ui_modules_import():
     import eyeboard.ui.tabs.compare  # noqa: F401
     import eyeboard.ui.tabs.dashboard  # noqa: F401
     import eyeboard.ui.tabs.dashboards_manager  # noqa: F401
+    import eyeboard.ui.tabs.explore  # noqa: F401
     import eyeboard.ui.tabs.plot_builder  # noqa: F401
-    import eyeboard.ui.tabs.preview  # noqa: F401

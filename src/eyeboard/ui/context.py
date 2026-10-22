@@ -7,6 +7,7 @@ import pandas as pd
 
 from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
 from eyeboard.services.dataset import DataSource
+from eyeboard.services.profile import ColumnProfile
 
 
 @dataclass(slots=True)
@@ -38,3 +39,5 @@ class MainDatasetContext:
     date_parse_mode: str
     date_format: str | None
     date_parse_warning: str | None
+    date_order: str | None
+    profiles: list[ColumnProfile]

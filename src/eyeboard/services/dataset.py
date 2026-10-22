@@ -13,7 +13,7 @@ import pandas as pd
 
 from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
 from eyeboard.services.csv_reading import read_csv_bytes
-from eyeboard.services.date_parsing import parse_dates_flexible
+from eyeboard.services.date_parsing import parse_dates_with_order
 
 # Share of successfully parsed dates under which the user is warned.
 DATE_PARSE_WARNING_THRESHOLD = 0.8
@@ -92,6 +92,7 @@ class ParsedTable:
     date_parse_success_count: int = 0
     date_parse_candidate_count: int = 0
     date_parse_warning: str | None = None
+    date_order: str | None = None
 
 
 def summarize_date_parsing(
@@ -131,11 +132,11 @@ def summarize_date_parsing(
 
 def parse_table(df: pd.DataFrame, settings: DateSettings) -> ParsedTable:
     """Parse the date column of a table according to the date settings."""
-    parsed = parse_dates_flexible(
+    parsed, order = parse_dates_with_order(
         df,
         settings.column,
         date_mode=settings.mode,
         date_format=settings.format,
     )
     success, candidates, warning = summarize_date_parsing(df, parsed, settings.column)
-    return ParsedTable(parsed, success, candidates, warning)
+    return ParsedTable(parsed, success, candidates, warning, order)

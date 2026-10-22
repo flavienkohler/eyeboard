@@ -93,13 +93,18 @@ def render_read_report(dataset: MainDatasetContext) -> None:
                 dataset.date_order,
             )
         }
-        c1, c2, c3, c4, c5, c6 = st.columns(6)
-        c1.metric(t("Separator"), by_name["Separator"])
-        c2.metric(t("Decimal"), by_name["Decimal"])
-        c3.metric(t("Encoding"), by_name["Encoding"])
-        c4.metric(t("Header"), by_name["Header"])
-        c5.metric(t("Date order"), by_name.get("Date order", t("n/a")))
-        c6.metric(t("Date parse"), parse_summary)
+        facts = [
+            (t("Separator"), by_name["Separator"]),
+            (t("Decimal"), by_name["Decimal"]),
+            (t("Encoding"), by_name["Encoding"]),
+            (t("Header"), by_name["Header"]),
+            (t("Date order"), by_name.get("Date order", t("n/a"))),
+            (t("Date parse"), parse_summary),
+        ]
+        # Plain text, not st.metric: metrics cut long values ("Semicolon (;) (auto)").
+        for column, (label, value) in zip(st.columns(len(facts)), facts, strict=True):
+            column.caption(label)
+            column.markdown(f"**{value}**")
 
         date_details = (
             t(

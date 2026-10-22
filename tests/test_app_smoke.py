@@ -65,9 +65,9 @@ def test_with_a_file_every_tab_renders_without_errors(workdir):
     ]
     metrics = {m.label: m.value for m in at.metric}
     assert metrics["Rows"] == "28" and metrics["Columns"] == "3"
-    assert metrics["Encoding"] == "UTF-8 (auto)"
-    assert metrics["Separator"] == "Semicolon (;) (auto)"
-    assert metrics["Date order"] == "day first (auto)"
+    facts = {m.value for m in at.markdown}
+    assert {"**UTF-8 (auto)**", "**Semicolon (;) (auto)**"} <= facts
+    assert "**day first (auto)**" in facts
     assert "Date parsing" in [e.label for e in at.sidebar.expander]
 
 
@@ -262,7 +262,8 @@ def test_the_demo_button_loads_the_demo_data_without_remembering_it(workdir):
 
     assert not at.exception and not at.error
     metrics = {m.label: m.value for m in at.metric}
-    assert metrics["Rows"] == "1,440" and metrics["Date order"] == "year first (auto)"
+    assert metrics["Rows"] == "1,440"
+    assert "**year first (auto)**" in {m.value for m in at.markdown}
     assert not any("decimal comma" in w.value for w in at.warning)
     recent = json.loads((workdir / "recent" / "index.json").read_text(encoding="utf-8"))
     assert [e["id"] for e in recent] == ["abc"]  # the demo was not added
@@ -324,9 +325,9 @@ def test_switching_to_french_translates_the_page_and_keeps_the_choices(workdir):
         "Tracer",
         "Tableaux de bord",
     ]
-    metrics = {m.label: m.value for m in at.metric}
-    assert metrics["Séparateur"] == "Point-virgule (;)"  # chosen, not detected
-    assert metrics["Ordre des dates"] == "jour en premier (auto)"
+    facts = {m.value for m in at.markdown}
+    assert "**Point-virgule (;)**" in facts  # chosen, not detected
+    assert "**jour en premier (auto)**" in facts
     separator = next(s for s in at.sidebar.selectbox if s.key == "read_sep")
     assert separator.value == "Semicolon (;)"  # the choice survived the new label
     assert any("virgule décimale" in w.value for w in at.warning)

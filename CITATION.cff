@@ -6,6 +6,6 @@ type: software
 authors:
   - family-names: "Kohler"
     given-names: "Flavien"
-version: "0.2.0"
+version: "0.3.0"
 date-released: "2026-10-21"
 license: PolyForm-Noncommercial-1.0.0

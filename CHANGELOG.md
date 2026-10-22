@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (unreleased)
 
 - CSV files are now decoded once: byte-order marks, Windows-1252 (Excel) and UTF-16 files are handled, and an Encoding option was added to Reading options.
 - Empty columns are dropped on load and reported, duplicated column names are reported, and read errors are shown as short readable messages.

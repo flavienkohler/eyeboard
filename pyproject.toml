@@ -1,6 +1,6 @@
 [project]
 name = "eyeboard"
-version = "0.2.0"
+version = "0.3.0"
 description = "EyeBoard: explore time-series CSV files, build reusable plot dashboards and compare datasets."
 readme = "README.md"
 requires-python = ">=3.11"

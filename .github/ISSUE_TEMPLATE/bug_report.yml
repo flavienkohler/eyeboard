@@ -24,7 +24,7 @@ body:
     attributes:
       label: EyeBoard version
       description: Shown in the sidebar, under About.
-      placeholder: "0.2.0"
+      placeholder: "0.3.0"
   - type: input
     id: system
     attributes:

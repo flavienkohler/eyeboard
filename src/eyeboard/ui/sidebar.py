@@ -4,6 +4,7 @@ import streamlit as st
 
 from eyeboard import __version__
 from eyeboard.config import (
+    ABOUT_BUTTON_COLOR,
     AUTHOR_GITHUB_URL,
     AUTHOR_LINKEDIN_URL,
     AUTHOR_NAME,
@@ -56,8 +57,26 @@ def render_sidebar() -> SidebarSelection:
     )
 
 
+ABOUT_BUTTON_STYLE = f"""
+<style>
+section[data-testid="stSidebar"] [data-testid="stPopoverButton"] {{
+    background-color: {ABOUT_BUTTON_COLOR};
+    border-color: {ABOUT_BUTTON_COLOR};
+    color: #0f2a1d;
+    font-weight: 600;
+}}
+section[data-testid="stSidebar"] [data-testid="stPopoverButton"]:hover {{
+    background-color: #5cc78a;
+    border-color: #5cc78a;
+    color: #0f2a1d;
+}}
+</style>
+"""
+
+
 def render_about() -> None:
     """A small box with the version, the author's links and where to send feedback."""
+    st.html(ABOUT_BUTTON_STYLE)
     with st.popover(t("About")):
         st.markdown(f"**EyeBoard** {__version__}")
         st.caption(t("Made by {author}", author=AUTHOR_NAME))

@@ -17,7 +17,8 @@ REPO_URL = "https://github.com/flavienkohler/eyeboard"
 ISSUES_URL = f"{REPO_URL}/issues/new/choose"
 AUTHOR_NAME = "Flavien Kohler"
 AUTHOR_GITHUB_URL = "https://github.com/flavienkohler"
-AUTHOR_LINKEDIN_URL: str | None = None  # shown in the About box once it is set
+AUTHOR_LINKEDIN_URL: str | None = "https://www.linkedin.com/in/flavien-kohler"
+ABOUT_BUTTON_COLOR = "#6ed59a"
 
 CANDIDATE_SEPARATORS = [",", ";", "\t", "|"]
 ENCODING_OPTIONS = {

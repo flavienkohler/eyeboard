@@ -64,6 +64,21 @@ def infer_dayfirst_from_series(series: pd.Series) -> bool | None:
     return None
 
 
+def is_year_first(series: pd.Series) -> bool:
+    """Whether the sampled values all start with a four-digit year (ISO-like dates).
+
+    The order of day and month is then not a question, so nothing is "ambiguous".
+    """
+    samples = sample_date_values(series)
+    if not samples:
+        return False
+    for text in samples:
+        match = DATE_ORDER_PATTERN.match(text)
+        if not match or len(match.group("first")) != 4:
+            return False
+    return True
+
+
 def to_datetime_safely(series: pd.Series, **kwargs) -> pd.Series:
     """Parse datetimes while suppressing pandas warning noise during inference."""
     with warnings.catch_warnings():
@@ -79,7 +94,7 @@ def parse_date_series_with_order(
 ) -> tuple[pd.Series, str]:
     """Parse a date series and say which date order was used.
 
-    The order is "format override", "day first" or "month first". In
+    The order is "format override", "year first", "day first" or "month first". In
     auto-detection it is followed by "(ambiguous)" when both orders parse
     equally well and nothing in the values settles it (every day is 12 or less).
     """
@@ -90,6 +105,9 @@ def parse_date_series_with_order(
         return to_datetime_safely(series, dayfirst=True), "day first"
     if date_mode == "Month-first":
         return to_datetime_safely(series, dayfirst=False), "month first"
+
+    if is_year_first(series):
+        return to_datetime_safely(series), "year first"
 
     inferred_dayfirst = infer_dayfirst_from_series(series)
     candidate_orders = (

@@ -46,3 +46,15 @@ def test_the_date_order_that_was_used_is_reported():
         parse_date_series_with_order(clear, date_format="%d/%m/%Y")[1]
         == "format override"
     )
+
+
+def test_iso_dates_are_year_first_and_never_ambiguous():
+    from eyeboard.services.date_parsing import parse_date_series_with_order
+
+    parsed, order = parse_date_series_with_order(
+        pd.Series(["2024-03-01 00:00", "2024-04-02 01:30"])
+    )
+
+    assert order == "year first"
+    assert parsed.iloc[0] == pd.Timestamp("2024-03-01 00:00")
+    assert parsed.iloc[1].month == 4

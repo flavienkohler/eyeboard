@@ -7,7 +7,7 @@ APP_PAGE_ICON = ":chart_with_upwards_trend:"
 APP_LAYOUT = "wide"
 APP_HEADER_TITLE = "EyeBoard"
 APP_HEADER_SUBTITLE = (
-    "Build reusable dashboards for CSV data without saving plot snapshots."
+    "Explore time-series CSV files, build reusable dashboards, compare runs."
 )
 
 CANDIDATE_SEPARATORS = [",", ";", "\t", "|"]

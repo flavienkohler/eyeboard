@@ -27,33 +27,20 @@ def render_header() -> None:
 
 
 def render_dataset_summary(dataset: MainDatasetContext) -> None:
-    """Render top-of-page dataset summary metrics."""
-    left, right = st.columns([2, 1], vertical_alignment="top")
-    with left:
-        st.markdown(
-            t("#### Data: {name}", name=escape_markdown(dataset.label or "CSV"))
-        )
-    with right:
-        st.markdown("")
-        action_col, tip_col = st.columns([0.7, 1.3], vertical_alignment="center")
-        with action_col:
-            if st.button(t("Reload CSV"), key="reload_current_csv", width="stretch"):
-                st.rerun()
-        with tip_col:
-            st.caption(
-                t("Tip: Use **Dashboards** for consistent plots across different CSVs.")
-            )
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric(t("Rows"), f"{len(dataset.df):,}")
-    m2.metric(t("Columns"), f"{len(dataset.cols):,}")
-    m3.metric(t("Missing cells"), f"{int(dataset.df.isna().sum().sum()):,}")
-    m4.metric(
-        t("Memory (approx.)"),
-        f"{dataset.df.memory_usage(deep=True).sum() / (1024**2):.1f} MB",
-    )
-
-    st.divider()
+    """Render one line about the loaded file; the details are in Explore."""
+    missing = int(dataset.df.isna().sum().sum())
+    megabytes = dataset.df.memory_usage(deep=True).sum() / (1024**2)
+    facts = [
+        t(
+            "{rows:,} rows x {columns:,} columns",
+            rows=len(dataset.df),
+            columns=len(dataset.cols),
+        ),
+        t("{count:,} missing cells", count=missing),
+        t("{size:.1f} MB", size=megabytes),
+    ]
+    name = escape_markdown(dataset.label or "CSV")
+    st.markdown(f"**{name}**  ·  " + "  ·  ".join(facts))
 
 
 def render_read_report(dataset: MainDatasetContext) -> None:

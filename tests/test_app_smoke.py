@@ -63,8 +63,8 @@ def test_with_a_file_every_tab_renders_without_errors(workdir):
         "Plot",
         "Dashboards",
     ]
-    metrics = {m.label: m.value for m in at.metric}
-    assert metrics["Rows"] == "28" and metrics["Columns"] == "3"
+    summary = next(m.value for m in at.markdown if m.value.startswith("**small"))
+    assert "28 rows x 3 columns" in summary and "0 missing cells" in summary
     facts = {m.value for m in at.markdown}
     assert {"**UTF-8 (auto)**", "**Semicolon (;) (auto)**"} <= facts
     assert "**day first (auto)**" in facts
@@ -261,8 +261,8 @@ def test_the_demo_button_loads_the_demo_data_without_remembering_it(workdir):
     at.run()
 
     assert not at.exception and not at.error
-    metrics = {m.label: m.value for m in at.metric}
-    assert metrics["Rows"] == "1,440"
+    summary = next(m.value for m in at.markdown if m.value.startswith("**demo"))
+    assert "1,440 rows x 8 columns" in summary
     assert "**year first (auto)**" in {m.value for m in at.markdown}
     assert not any("decimal comma" in w.value for w in at.warning)
     recent = json.loads((workdir / "recent" / "index.json").read_text(encoding="utf-8"))

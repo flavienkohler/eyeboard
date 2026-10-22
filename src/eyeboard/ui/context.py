@@ -16,6 +16,7 @@ class SidebarSelection:
 
     uploaded_file: Any
     recent_csv_id: str | None
+    demo: bool
     read_options: ReadOptions
     status_slot: Any  # sidebar container filled once the file is loaded
 

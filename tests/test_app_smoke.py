@@ -49,7 +49,9 @@ def test_without_a_file_the_app_asks_for_one(workdir):
     at = _run(select_recent=False)
 
     assert not at.exception
-    assert "Upload a CSV to start." in [info.value for info in at.info]
+    assert "Upload a CSV to start, or try the demo data from the sidebar." in [
+        info.value for info in at.info
+    ]
 
 
 def test_with_a_file_every_tab_renders_without_errors(workdir):
@@ -250,6 +252,49 @@ def test_renaming_to_a_taken_name_is_refused(workdir):
         "Flow board",
         "Other board",
     ]
+
+
+def test_the_demo_button_loads_the_demo_data_without_remembering_it(workdir):
+    at = _run(select_recent=False)
+
+    next(b for b in at.sidebar.button if b.key == "try_demo").click().run()
+    at.run()
+
+    assert not at.exception and not at.error
+    metrics = {m.label: m.value for m in at.metric}
+    assert metrics["Rows"] == "1,440" and metrics["Date order"] == "year first (auto)"
+    assert not any("decimal comma" in w.value for w in at.warning)
+    recent = json.loads((workdir / "recent" / "index.json").read_text(encoding="utf-8"))
+    assert [e["id"] for e in recent] == ["abc"]  # the demo was not added
+
+
+def test_the_demo_files_can_be_compared_without_any_upload(workdir):
+    at = _run(select_recent=False)
+    next(b for b in at.sidebar.button if b.key == "try_demo").click().run()
+    at.run()
+    _save_demo_dashboard(workdir, at)
+
+    next(s for s in at.selectbox if s.key == "compare_b_recent").select(
+        "demo:station_b"
+    ).run()
+
+    table = next(df.value for df in at.dataframe if "bias (B - A)" in df.value.columns)
+    assert list(table["series"]) == ["flow_m3s"]
+    assert table.loc[0, "bias (B - A)"] > 0  # the model run is 6 % too high
+
+
+def _save_demo_dashboard(workdir, at):
+    from helpers import make_dashboard, make_plot
+
+    at.session_state["dashboards"] = [
+        make_dashboard(
+            "d1",
+            "Flow",
+            plots=[make_plot(id="p1", x_col="timestamp", y_cols=["flow_m3s"])],
+        )
+    ]
+    at.session_state["active_dashboard_id"] = "d1"
+    at.run()
 
 
 def test_the_date_column_is_detected_from_the_loaded_file(workdir):

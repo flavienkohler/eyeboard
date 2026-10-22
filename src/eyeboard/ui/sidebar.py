@@ -24,7 +24,7 @@ RECENT_BUTTONS = 3
 def render_sidebar() -> SidebarSelection:
     """Render the main sidebar and return the current selections."""
     with st.sidebar:
-        uploaded_file, recent_csv_id = render_data_section()
+        uploaded_file, recent_csv_id, demo = render_data_section()
         # Filled once the file is loaded, but shown right under the data section.
         status_slot = st.container()
         st.divider()
@@ -33,6 +33,7 @@ def render_sidebar() -> SidebarSelection:
     return SidebarSelection(
         uploaded_file=uploaded_file,
         recent_csv_id=recent_csv_id,
+        demo=demo,
         read_options=read_options,
         status_slot=status_slot,
     )
@@ -77,12 +78,17 @@ def render_data_section():
             type=["csv"],
             help="Upload a CSV file from your computer.",
         )
+        if st.button("Try the demo data", key="try_demo", width="stretch"):
+            state.active_csv_source = "demo"
+            state.active_recent_csv_id = None
+            st.rerun()
         recent_csvs = list_recent_csvs()
         if recent_csvs:
             render_recent_files(recent_csvs)
 
     signature = upload_signature(uploaded_file) if uploaded_file is not None else None
-    return uploaded_file, choose_active_source(state, signature)
+    recent_id = choose_active_source(state, signature)
+    return uploaded_file, recent_id, state.active_csv_source == "demo"
 
 
 def render_recent_files(recent_csvs: list[dict]) -> None:
@@ -128,7 +134,8 @@ def render_recent_files(recent_csvs: list[dict]) -> None:
     if st.button("Clear recent files", key="clear_recent_csvs"):
         clear_recent_csvs()
         state.active_recent_csv_id = None
-        state.active_csv_source = "upload"
+        if state.active_csv_source == "recent":
+            state.active_csv_source = "upload"
         st.rerun()
 
 

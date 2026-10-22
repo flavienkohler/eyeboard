@@ -9,6 +9,7 @@ from eyeboard.models import CsvReadReport, DateSettings, ReadOptions
 from eyeboard.paths import data_dir
 from eyeboard.services.columns import guess_date_column
 from eyeboard.services.dataset import DataSource, source_from_upload
+from eyeboard.services.demo import demo_source
 from eyeboard.services.legacy import LegacyImport
 from eyeboard.services.recent_csvs import (
     remember_recent_csv,
@@ -55,7 +56,7 @@ def main() -> None:
 
     source = resolve_source(sidebar_selection)
     if source is None:
-        st.info("Upload a CSV to start.")
+        st.info("Upload a CSV to start, or try the demo data from the sidebar.")
         st.stop()
 
     df, read_report, error = load_table_cached(source, read_options)
@@ -122,6 +123,8 @@ def render_dashboards_load_problems(loaded: LoadResult) -> None:
 
 def resolve_source(selection: SidebarSelection) -> DataSource | None:
     """Turn the sidebar choice (recent file or upload) into a data source."""
+    if selection.demo:
+        return demo_source("station_a")
     if selection.recent_csv_id is not None:
         source = source_for_recent(selection.recent_csv_id)
         if source is not None:
@@ -134,6 +137,8 @@ def resolve_source(selection: SidebarSelection) -> DataSource | None:
 
 def remember_source(selection: SidebarSelection, source: DataSource) -> None:
     """Record the loaded file in the recent list, once per new upload."""
+    if selection.demo:
+        return  # the demo data is generated, not a file of the user
     if selection.recent_csv_id is not None:
         state.active_recent_csv_id = selection.recent_csv_id
         state.active_csv_source = "recent"

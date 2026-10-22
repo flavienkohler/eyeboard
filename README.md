@@ -1,4 +1,4 @@
-# EyeBoard
+<h1><img src="src/eyeboard/assets/logo.svg" alt="" width="40" align="top"> EyeBoard</h1>
 
 **Open a time-series CSV, see what is really in it, plot it, and compare it with another run.**
 
@@ -61,6 +61,10 @@ Under each chart, *Prepare export files* gives a standalone HTML page of the cha
 Nothing is uploaded anywhere, no usage statistics are sent, and the app only listens on your own machine (`--server.address 0.0.0.0` opens it to the network if you ever want that). EyeBoard keeps your saved dashboards (`dashboards.json`) and copies of the files you opened (for the recent list) in one folder: `%APPDATA%/eyeboard` on Windows, the standard per-user data folder elsewhere, or the folder named by the `EYEBOARD_HOME` environment variable. The sidebar shows the exact location and can clear the recent files.
 
 The interface is available in English and French (selector at the bottom of the sidebar). Python 3.11 to 3.13 is supported.
+
+## Feedback
+
+EyeBoard is young, and real files are the best test. If something reads wrongly, breaks, or is missing for your data, please [open an issue](https://github.com/flavienkohler/eyeboard/issues/new/choose): there is a short form for bugs and one for ideas. Anonymised sample lines of the file you struggled with are the most useful thing you can add.
 
 ## License
 

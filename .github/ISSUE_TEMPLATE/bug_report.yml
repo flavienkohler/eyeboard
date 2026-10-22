@@ -1,0 +1,37 @@
+name: Bug report
+description: Something does not work, or EyeBoard read a file wrongly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. The more precisely you can tell me what happened, the faster I can fix it.
+        **Please do not attach confidential data.** A few lines of the file, with values changed, are enough.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: About the file
+      description: Separator, decimal mark, encoding, how the dates are written, roughly how many rows. The first 3 or 4 lines (anonymised) help a lot.
+  - type: input
+    id: version
+    attributes:
+      label: EyeBoard version
+      description: Shown in the sidebar, under About.
+      placeholder: "0.2.0"
+  - type: input
+    id: system
+    attributes:
+      label: Operating system and browser
+      placeholder: "Windows 11, Firefox"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or error text
+      description: Paste or drag them here.

@@ -1,0 +1,24 @@
+name: Idea or feature request
+description: Something EyeBoard could do, or do better.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: EyeBoard is a small local tool and is meant to stay one, so the best ideas start from a concrete situation. Thank you for sharing yours.
+  - type: textarea
+    id: situation
+    attributes:
+      label: What are you trying to do?
+      description: Describe the data and the task, not only the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: What you imagine, or how you do it today.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Mock-ups, links, similar tools.
